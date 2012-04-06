@@ -62,7 +62,7 @@ var DCPU16 = (function () {
 
 		tokenize = function (line) {
 			var label, op = 'NOP', params = [];
-						
+
 			if (line[0] == ':') {
 				label = next(line.slice(1));
 				line = trim(line.slice(label.length+1));
@@ -93,10 +93,6 @@ var DCPU16 = (function () {
 			if (brackets) {
 				param = trim(param.slice(1, -1));
 			}
-
-	// oooo   = 0x1
-	// aaaaaa = 0x16  vs 0x1e
-	// bbbbbb = 0x08
 
 			if (param in regs) {
 				// register
@@ -129,38 +125,48 @@ var DCPU16 = (function () {
 			}
 			
 			return [0x0];
+		},
+		
+		base64enc: function (data) {
+			// taken from https://github.com/Stuk/jszip
+			var _keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+				output = "",
+				chr1, chr2, chr3, enc1, enc2, enc3, enc4,
+				i = 0;
+
+			while (i < data.length) {
+				chr1 = data.charCodeAt(i++);
+				chr2 = data.charCodeAt(i++);
+				chr3 = data.charCodeAt(i++);
+
+				enc1 = chr1 >> 2;
+				enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+				enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+				enc4 = chr3 & 63;
+
+				if (isNaN(chr2)) {
+				   enc3 = enc4 = 64;
+				} else if (isNaN(chr3)) {
+				   enc4 = 64;
+				}
+
+				output = output + _keyStr.charAt(enc1) + _keyStr.charAt(enc2) + _keyStr.charAt(enc3) + _keyStr.charAt(enc4);
+	   		}
+
+			return output;
 		};
 
 	return {
-		pc: 0,
-		sp: 0,
-		o: 0,
-		reg: {
-			a: 0,
-			b: 0,
-			c: 0,
-			x: 0,
-			y: 0,
-			z: 0,
-			i: 0,
-			j: 0
-		},
-		ram: new Array(ramSize*wordSize),
-		
-		clear: function () {
-			pc = 0;
-			sp = 0;
-			o = 0;
-			reg.a = 0;
-			reg.b = 0;
-			reg.c = 0;
-			reg.x = 0;
-			reg.y = 0;
-			reg.z = 0;
-			reg.i = 0;
-			reg.j = 0;
+		decLabelRef: function (labels, ptr) {
+			var l;
 			
-			ram = new Array(131072);
+			for (l in labels) {
+				if (labels.hasOwnProperty(l)) {
+					if (labels[i] > ptr) {
+						labels[i]--;
+					}
+				}
+			}
 		},
 		
 		asm: function (src) {
@@ -237,14 +243,19 @@ var DCPU16 = (function () {
 				pt += inc;
 			}
 			
+			inc = 0;
+			
 			for (i = 0; i < resolve.length; i++) {
 				w = resolve[i];
-				/*if (labels[w.label] >= 0 && labels[w.label] < 0x20) {
+				/*
+				if (labels[w.label] >= 0 && labels[w.label] < 0x20) {
 					// this is a little bit more complex because all the references to the other labels
 					// may change, too... :/
-					bc[w.oppt] = bc[w.oppt] & ((0x3f << ((1-w.par)*6 + 4)) | 0xf);
-					bc[w.oppt] = bc[w.oppt] | ((0x20 + labels[w.label]) << (w.par*6+4));
-					bc[w.pt] = NaN;
+					this._decLabelRef(labels, w.oppt);
+					bc[w.oppt-inc] = bc[w.oppt-inc] & ((0x3f << ((1-w.par)*6 + 4)) | 0xf);
+					bc[w.oppt-inc] = bc[w.oppt-inc] | ((0x20 + labels[w.label]) << (w.par*6+4));
+					bc.splice(w.pt-inc, 1);
+					inc++;
 				} else {*/
 					bc[w.pt] = labels[w.label];
 				//}
@@ -253,7 +264,48 @@ var DCPU16 = (function () {
 			return bc;
 		},
 		
-		run: function (rom) {
+		Instance: function (rom) {
+			this.ramSize = ramSize;
+			this.wordSize = wordSize;
+			
+			this.pc = 0;
+			this.sp = 0;
+			this.o: 0;
+			this.reg: {
+				a: 0,
+				b: 0,
+				c: 0,
+				x: 0,
+				y: 0,
+				z: 0,
+				i: 0,
+				j: 0
+			};
+			this.ram = new Array(ramSize*wordSize);
+			
+			if (rom) {
+				this.load(rom);
+			}
 		}	
 	};
 })();
+
+DCPU16.Instance.prototype.clear = function () {
+	this.pc = 0;
+	this.sp = 0;
+	this.o = 0;
+	this.reg.a = 0;
+	this.reg.b = 0;
+	this.reg.c = 0;
+	this.reg.x = 0;
+	this.reg.y = 0;
+	this.reg.z = 0;
+	this.reg.i = 0;
+	this.reg.j = 0;
+			
+	this.ram = new Array(this.ramSize);
+};
+
+DCPU16.Instance.prototype.load = function (rom) {
+	
+};
