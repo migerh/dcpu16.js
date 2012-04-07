@@ -31,24 +31,85 @@
         ; Hang forever. X should now be 0x40 if everything went right.
         :crash        SET PC, crash            ; 7dc1 001a [*]
         
+        :data
+        			dat 0x170, "Hello, World!", 0x65, 73, "w0,,0t!"
+        
         ; [*]: Note that these can be one word shorter and one cycle faster by using the short form (0x00-0x1f) of literals,
         ;      but my assembler doesn't support short form labels yet.</textarea>
 
 <div id="out"></div>
 
 <script type="text/javascript">
-	var out = document.getElementById('out'),
-		src = document.getElementById('src').value,
-		i, result, t, CPU;
+	var CPU1 = (function () {
+		var out = document.getElementById('out'),
+			src = document.getElementById('src').value,
+			i, result, t, CPU;
 	
-	result = DCPU16.asm(src);
-	for (i = 0; i < result.length; i++) {
-		t = result[i].toString(16);
-		//out.innerHTML += ':' + result[i].label + ' ' + result[i].op + ' ' + result[i].params.join(',') + '<br />';
-		out.innerHTML += (t.length == 1 ? '0' : '') + t + ' ';
-	}
+		result = DCPU16.asm(src);
+		for (i = 0; i < result.length; i++) {
+			t = result[i].toString(16);
+			//out.innerHTML += ':' + result[i].label + ' ' + result[i].op + ' ' + result[i].params.join(',') + '<br />';
+			out.innerHTML += (t.length == 1 ? '0' : '') + t + ' ';
+		}
 	
-	CPU = new DCPU16.PC(result);
+		CPU = new DCPU16.PC(result);
+		
+		return CPU;
+	})();
+</script>
+
+<textarea id="src2" rows="30" cols="140">
+:start
+	set i, 0
+	set j, 0
+	set b, 0xf100
+
+:nextchar
+	set a, (data+i)
+	ife a, 0
+		set PC, end
+	ifg a, 0xff
+		set PC, setcolor
+	bor a, b
+	set (0x8000+j), a
+	add i, 1
+	add j, 1
+	set PC, nextchar
+
+:setcolor
+	set b, a
+	and b, 0xff
+	shl b, 8
+	ifg a, 0x1ff
+		add b, 0x80
+	add i, 1
+	set PC, nextchar
+
+:data
+	dat 0x170, "Hello ", 0x2e1, "world", 0x170, ", how are you?", 0x0
+
+:end
+	set PC, start
+</textarea>
+
+<div id="out2"></div>
+
+<script type="text/javascript">
+	var CPU2 = (function () {
+		var out = document.getElementById('out2'),
+			src = document.getElementById('src2').value,
+			i, result, t, CPU;
+	
+		result = DCPU16.asm(src);
+		for (i = 0; i < result.length; i++) {
+			t = result[i].toString(16);
+			out.innerHTML += (t.length == 1 ? '0' : '') + t + ' ';
+		}
+	
+		CPU = new DCPU16.PC(result);
+		
+		return CPU;
+	})();
 </script>
 </body>
 </html>

@@ -4,6 +4,11 @@ var DCPU16 = (function () {
 		ramSize = 0x10000,
 		wordSize = 2,
 		
+		_debug = function () {
+			if (typeof console != 'undefined' && console.log)
+				console.log(arguments);
+		},
+		
 		// opcodes translation table
 		opcodes = {
 			// basic opcodes
@@ -135,7 +140,11 @@ var DCPU16 = (function () {
 					// _error!
 				}
 				
-				return [0x10 + registers[trim(t[1]).toUpperCase()], parseInt(t[0])];
+				if (t[0].match(/^0x[0-9a-f]{1,4}$/) || t[0].match(/^[0-9]{1,5}$/)) {
+					return [0x10 + registers[trim(t[1]).toUpperCase()], parseInt(t[0])];
+				} else {
+					return [0x10 + registers[trim(t[1]).toUpperCase()], t[0]];
+				}
 			} else {
 				// label
 				return brackets ? [0x1e, param] : [0x1f, param];
@@ -154,7 +163,7 @@ var DCPU16 = (function () {
 		asm: function (src) {
 			var lines = src.split('\n'),
 				line, bc = [], rom, w, pt = 0, inc,
-				i, j, token, resolve = [],
+				i, j, k, token, resolve = [],
 				labels = {};
 			
 			// read it line by line
@@ -170,17 +179,44 @@ var DCPU16 = (function () {
 				inc = 1;
 				token = tokenize(line);
 				
+				// set the current execution pointer
+				// this assumes that the rom is always
+				// loaded at 0x0000
 				if (token.label) {
 					labels[token.label] = pt;
 				}
 				
+				// apparently it was just a label
 				if (token.op == '') {
 					continue;
 				}
 				
 				if (token.op.toUpperCase() == 'DAT') {
-					rom = params.join(',');
-					//bc[pt++] = 
+					// extract the strings first
+					w = token.params.join(',').split('"');
+					rom = [];
+					for (j = 1; j < w.length; j = j+2) {
+						rom.push(w[j]);
+						// replace the string with 'str'
+						w.splice(j, 1, 'str');
+					}
+					
+					// split at the , outside the strings
+					w = w.join('').split(',');
+					
+					// put it into the byte array
+					for (j = 0; j < w.length; j++) {
+						if (trim(w[j]) == 'str') {
+							w[j] = rom.shift();
+							for (k = 0; k < w[j].length; k++) {
+								bc.push(w[j].charCodeAt(k) & maxWord);
+								pt++;
+							}
+						} else {
+							bc.push(parseInt(w[j]));
+							pt++;
+						}
+					}
 					continue;
 				}
 				
@@ -375,6 +411,7 @@ var DCPU16 = (function () {
 						};
 						break;
 					case 0x1: // SET
+						_debug('SET', addrA.toString(16), valB.toString(16));
 						this.setWord(addrA, valB);
 						break;
 					case 0x2: // ADD
@@ -486,6 +523,7 @@ var DCPU16 = (function () {
 					a = (w & 0x3f0) >> 4,
 					b = (w & 0xfc00) >> 10;
 					
+				console.log(op, a, b);
 				this.exec(op, a, b);
 			};
 			
