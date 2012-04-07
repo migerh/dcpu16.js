@@ -41,6 +41,8 @@ var DCPU16 = (function () {
 			J: 0x7
 		},
 		
+		registers_rev = ['A', 'B', 'C', 'X', 'Y', 'Z', 'I', 'J'],
+		
 		// special stack ops and pointers/flags
 		values = {
 			POP: 0x18,
@@ -50,6 +52,8 @@ var DCPU16 = (function () {
 			PC: 0x1c,
 			O: 0x1d
 		},
+		
+		values_rev = [],
 		
 		trim = function (str) {
 			str = str.replace(/^\s+/, "");
@@ -181,19 +185,11 @@ var DCPU16 = (function () {
 				}
 			}
 		};
-	
-	// reverse lookup for registers
-	for (o in registers) {
-		if (registers.hasOwnProperty(o)) {
-			registers[registers[o]] = o;
-		}
-	}
 
-	for (o in values) {
-		if (values.hasOwnProperty(o)) {
-			values[values[o]] = o;
-		}
-	}
+	// very hacky
+	values_rev[0x1b] = 'SP';
+	values_rev[0x1c] = 'PC';
+	values_rev[0x1d] = 'O';
 
 	return {
 		// assembler
@@ -226,7 +222,7 @@ var DCPU16 = (function () {
 				
 				w = opcodes[token.op];
 				bc.push(0);
-
+				
 				// basic op code
 				if (w > 0x0 && w < 0x10) {
 					for (j = 0; j < 2; j++) {
@@ -294,6 +290,7 @@ var DCPU16 = (function () {
 			}
 			
 			for (i = 0; i < bc.length; i++) {
+				console.log('assembled', bc[i].toString(16));
 				rom.push((bc[i] >> 8) & 0xff);
 				rom.push(bc[i] & 0xff);
 			}
@@ -342,14 +339,14 @@ var DCPU16 = (function () {
 			};
 			
 			this.getWord = function (ptr) {
-				return this.ram[ptr];
+				return this.ram[ptr] || 0;
 			};
 			
 			this.getValue = function (val) {
 				var r;
 				
 				if (val < 0x1f) {
-					r = this.ram[this.getAddress(val)];
+					r = this.ram[this.getAddress(val)] || 0;
 				} else if (val == 0x1f) {
 					r = this.ram[this.ram.PC++];
 				} else if (val >= 0x20 && val < 0x40) {
@@ -363,21 +360,26 @@ var DCPU16 = (function () {
 				var r;
 			
 				if (val >= 0 && val < 0x8) {
-					r = registers[val];
+					r = registers_rev[val];
 				} else if (val >= 0x8 && val < 0x10) {
-					r = this.ram[registers[val-8]];
+					r = this.getWord(registers_rev[val-8]);
 				} else if (val >= 0x10 && val < 0x18) {
-					r = this.getWord(this.ram.PC++) + this.ram[registers[val-0x10]];
+					r = this.getWord(this.ram.PC++) + this.getWord(registers_rev[val-0x10]);
 				} else if (val == 0x18) {
-					r = this.ram.SP++;
+					this.ram.SP = (this.ram.SP + 1) & maxWord;
+					r = this.ram.SP;
 				} else if (val == 0x19) {
 					r = this.ram.SP;
 				} else if (val == 0x1a) {
-					r = --this.ram.SP;
+					this.ram.SP -= 1;
+					if (this.ram.SP < 0) {
+						this.ram.SP = maxWord + this.ram.SP;
+					}
+					r = this.ram.SP;
 				} else if (val >= 0x1b && val <= 0x1d) {
-					r = values[val];
+					r = values_rev[val];
 				} else if (val == 0x1e) {
-					r = this.ram[this.ram.PC++];
+					r = this.getWord(this.ram.PC++);
 				}
 				
 				return r;
@@ -386,10 +388,10 @@ var DCPU16 = (function () {
 			this.exec = function (op, a, b) {
 				var tmp, addrA, valB;
 				
-				console.log(op, a, b);
-				
 				addrA = this.getAddress(a);
 				valB = this.getValue(b);
+
+				console.log(op, addrA.toString(16), valB.toString(16));
 				
 				// fail silently
 				if (!addrA || this.skipNext) {
@@ -401,13 +403,19 @@ var DCPU16 = (function () {
 					case 0:
 						switch (a) {
 							case 0x1:
-								this.ram[this.ram.SP++] = this.ram.PC;
+								console.log('JSR');
+								if (this.ram.SP == 0) {
+									this.ram.SP = maxWord;
+								} else {
+									this.ram.SP -= 1;
+								}
+								this.ram[this.ram.SP] = this.ram.PC;
 								this.ram.PC = valB;
 							break;
 						};
 						break;
 					case 0x1: // SET
-						console.log('set', addrA, valB);
+						console.log('set', addrA.toString(16), valB.toString(16));
 						this.setWord(addrA, valB);
 						break;
 					case 0x2: // ADD
@@ -421,6 +429,7 @@ var DCPU16 = (function () {
 						this.setWord(addrA, tmp);
 						break;
 					case 0x3: // SUB
+						console.log('sub', addrA.toString(16), valB.toString(16));
 						tmp = this.getWord(addrA) - valB;
 						
 						this.ram.O = 0;
@@ -518,6 +527,8 @@ var DCPU16 = (function () {
 					op = w & 0xf,
 					a = (w & 0x3f0) >> 4,
 					b = (w & 0xfc00) >> 10;
+					
+				console.log('step', w.toString(16));
 					
 				this.exec(op, a, b);
 			};
