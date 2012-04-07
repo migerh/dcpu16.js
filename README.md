@@ -31,3 +31,6 @@ Access the ram. The registers and flags (A, B, C, X, Y, Z, I, J, SP, PC, O) can
 be accessed as properties of the ram:
 
 	var valueOfRegisterA = PC.ram.A;
+
+	PC.screen2html();
+Returns a string containing the html formatted content of the screen buffer.

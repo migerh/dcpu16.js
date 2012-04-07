@@ -5,6 +5,7 @@ var DCPU16 = (function () {
 		wordSize = 2,
 		
 		_debug = function () {
+			return;
 			if (typeof console != 'undefined' && console.log)
 				console.log(arguments);
 		},
@@ -523,8 +524,45 @@ var DCPU16 = (function () {
 					a = (w & 0x3f0) >> 4,
 					b = (w & 0xfc00) >> 10;
 					
-				console.log(op, a, b);
+				_debug(op, a, b);
 				this.exec(op, a, b);
+			};
+			
+			this.screen2html =  function () {
+				// this is very inefficient and by far not the best way but
+				// it is only to test if i have the right color scheme.
+				var i, val,
+					screenSize = 0x800, screenBase = 0x8000,
+					lastStyle = 'background-color: #000; color: #fff;',
+					style = '',
+					output = '<span style="' + lastStyle + '">';
+				
+				for (i = 0; i < 0x800; i++) {
+					val = this.getWord(screenBase + i);
+					style = 'background-color: #' +
+						(((val >> 8) & 4) ? 'f' : '0') +
+						(((val >> 8) & 2) ? 'f' : '0') +
+						(((val >> 8) & 1) ? 'f' : '0') +
+						'; color: #' +
+						(((val >> 12) & 4) ? 'f' : '0') +
+						(((val >> 12) & 2) ? 'f' : '0') +
+						(((val >> 12) & 1) ? 'f' : '0') + ';';
+					
+					if (style != lastStyle) {
+						lastStyle = style;
+						output += '</span><span style="' + lastStyle + '">';
+					}
+					
+					if (i % 32 == 0) {
+						output += '<br />';
+					}
+					
+					output += String.fromCharCode(val & 0x7f);
+				}
+				
+				output += '</span>';
+				
+				return output;
 			};
 			
 			this.clear();

@@ -1,10 +1,8 @@
 <html>
 	<head>
 		<script type="text/javascript" src="dcpu16.js"></script>
-	</head>
-<body>
-<h1>This is just a test environment for testing &amp; debugging</h1>
-<textarea id="src" rows="30" cols="140">        ; Try some basic stuff
+		<script type="text/dcpu-asm" id="example-1">
+		        ; Try some basic stuff
                       set A, 0x30              ; 7c01 0030
                       SET [0x1000], 0x20       ; 7de1 1000 0020
                       SUB a, [0x1000]          ; 7803 1000
@@ -35,30 +33,9 @@
         			dat 0x170, "Hello, World!", 0x65, 73, "w0,,0t!"
         
         ; [*]: Note that these can be one word shorter and one cycle faster by using the short form (0x00-0x1f) of literals,
-        ;      but my assembler doesn't support short form labels yet.</textarea>
-
-<div id="out"></div>
-
-<script type="text/javascript">
-	var CPU1 = (function () {
-		var out = document.getElementById('out'),
-			src = document.getElementById('src').value,
-			i, result, t, CPU;
-	
-		result = DCPU16.asm(src);
-		for (i = 0; i < result.length; i++) {
-			t = result[i].toString(16);
-			//out.innerHTML += ':' + result[i].label + ' ' + result[i].op + ' ' + result[i].params.join(',') + '<br />';
-			out.innerHTML += (t.length == 1 ? '0' : '') + t + ' ';
-		}
-	
-		CPU = new DCPU16.PC(result);
-		
-		return CPU;
-	})();
-</script>
-
-<textarea id="src2" rows="30" cols="140">
+        ;      but my assembler doesn't support short form labels yet.
+		</script>
+		<script type="text/dcpu-asm" id="example-screen">
 :start
 	set i, 0
 	set j, 0
@@ -90,26 +67,76 @@
 
 :end
 	set PC, start
-</textarea>
+		</script>
+	</head>
+<body>
+<p>
+	<a href="javascript:void(0);" onclick="load('example-1');">Ref example</a>
+	<a href="javascript:void(0);" onclick="load('example-screen');">Screen buffer example</a>
+</p>
+<textarea id="src" rows="30" cols="140"></textarea>
+<p>
+	<button onclick="asm();">Assemble</button>
+	Run <input type="text" id="steps" value="300" /><button onclick="step();">Steps</button>
+	<button onclick="print();">Show screen buffer</button>
+</p>
 
-<div id="out2"></div>
+<div id="status" style="width: 200px; border: 1px solid black; float: left;"></div>
+<div id="out" style="margin-left: 210px; width: 400px; border: 1px solid black;"></div>
 
 <script type="text/javascript">
-	var CPU2 = (function () {
-		var out = document.getElementById('out2'),
-			src = document.getElementById('src2').value,
-			i, result, t, CPU;
-	
-		result = DCPU16.asm(src);
-		for (i = 0; i < result.length; i++) {
-			t = result[i].toString(16);
-			out.innerHTML += (t.length == 1 ? '0' : '') + t + ' ';
-		}
-	
-		CPU = new DCPU16.PC(result);
+	var PC,
+		load = function (what) {
+			document.getElementById('src').value = document.getElementById(what).innerHTML;
+		},
+		asm = function () {
+			var src = document.getElementById('src').value,
+				out = document.getElementById('out'),
+				bc = DCPU16.asm(src),
+				t;
+				
+			PC = new DCPU16.PC(bc);
+			out.innerHTML = '';
+			for (i = 0; i < bc.length; i++) {
+				t = bc[i].toString(16);
+				out.innerHTML += (t.length == 1 ? '0' : '') + t + (i % 2 == 1 ? ' ' : '');
+			}
+		},
+		step = function () {
+			var i, steps = parseInt(document.getElementById('steps').value);
+			
+			for (i = 0; i < steps; i++) {
+				PC.step();
+			}
+			printStatus();
+		},
+		printValue = function (v) {
+			var r = v.toString(16);
+				
+			return r;
+		},
+		printStatus = function () {
+			var status = document.getElementById('status');
+			
+			status.innerHTML = 'A = ' + printValue(PC.ram.A) + '<br />';
+			status.innerHTML += 'B = ' + printValue(PC.ram.B) + '<br />';
+			status.innerHTML += 'C = ' + printValue(PC.ram.C) + '<br />';
+			status.innerHTML += 'X = ' + printValue(PC.ram.X) + '<br />';
+			status.innerHTML += 'Y = ' + printValue(PC.ram.Y) + '<br />';
+			status.innerHTML += 'Z = ' + printValue(PC.ram.Z) + '<br />';
+			status.innerHTML += 'I = ' + printValue(PC.ram.I) + '<br />';
+			status.innerHTML += 'J = ' + printValue(PC.ram.J) + '<br />';
+
+			status.innerHTML += 'PC = ' + printValue(PC.ram.PC) + '<br />';
+			status.innerHTML += 'SP = ' + printValue(PC.ram.SP) + '<br />';
+			status.innerHTML += 'O = ' + printValue(PC.ram.O) + '<br />';
+		},
+		print = function () {
+			var out = document.getElementById('out');
+			out.innerHTML = PC.screen2html();
+		};
 		
-		return CPU;
-	})();
+	load('example-screen');
 </script>
 </body>
 </html>
