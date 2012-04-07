@@ -4,8 +4,6 @@ var DCPU16 = (function () {
 		ramSize = 0x10000,
 		wordSize = 2,
 		
-		o,
-	
 		// opcodes translation table
 		opcodes = {
 			// basic opcodes
@@ -66,7 +64,7 @@ var DCPU16 = (function () {
 			return str.replace(/\t/, " ");
 		},
 		
-		_def = function (val, def) {
+		def = function (val, def) {
 			if (typeof val == 'undefined' || typeof val == 'null') {
 				return def;
 			}
@@ -142,48 +140,6 @@ var DCPU16 = (function () {
 			}
 			
 			return [0x0];
-		},
-		
-		// unused for now
-		base64enc = function (data) {
-			// taken from https://github.com/Stuk/jszip
-			var _keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
-				output = "",
-				chr1, chr2, chr3, enc1, enc2, enc3, enc4,
-				i = 0;
-
-			while (i < data.length) {
-				chr1 = data.charCodeAt(i++);
-				chr2 = data.charCodeAt(i++);
-				chr3 = data.charCodeAt(i++);
-
-				enc1 = chr1 >> 2;
-				enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
-				enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
-				enc4 = chr3 & 63;
-
-				if (isNaN(chr2)) {
-				   enc3 = enc4 = 64;
-				} else if (isNaN(chr3)) {
-				   enc4 = 64;
-				}
-
-				output = output + _keyStr.charAt(enc1) + _keyStr.charAt(enc2) + _keyStr.charAt(enc3) + _keyStr.charAt(enc4);
-	   		}
-
-			return output;
-		},
-		
-		decLabelRef = function (labels, ptr) {
-			var l;
-			
-			for (l in labels) {
-				if (labels.hasOwnProperty(l)) {
-					if (labels[i] > ptr) {
-						labels[i]--;
-					}
-				}
-			}
 		};
 
 	// very hacky
@@ -290,7 +246,6 @@ var DCPU16 = (function () {
 			}
 			
 			for (i = 0; i < bc.length; i++) {
-				console.log('assembled', bc[i].toString(16));
 				rom.push((bc[i] >> 8) & 0xff);
 				rom.push(bc[i] & 0xff);
 			}
@@ -325,7 +280,7 @@ var DCPU16 = (function () {
 			this.load = function (rom, where) {
 				var i = 0;
 				
-				where = _def(where, 0);
+				where = def(where, 0);
 				
 				while (i < rom.length) {
 					this.ram[where+i] = ((rom[2*i] & 0xff) << 8) | ((rom[2*i+1] || 0) & 0xff);
@@ -334,7 +289,6 @@ var DCPU16 = (function () {
 			};
 			
 			this.setWord = function (ptr, val) {
-				console.log('setWord', ptr, val);
 				this.ram[ptr] = val & maxWord;
 			};
 			
@@ -391,8 +345,6 @@ var DCPU16 = (function () {
 				addrA = this.getAddress(a);
 				valB = this.getValue(b);
 
-				console.log(op, addrA.toString(16), valB.toString(16));
-				
 				// fail silently
 				if (!addrA || this.skipNext) {
 					this.skipNext = false;
@@ -403,7 +355,6 @@ var DCPU16 = (function () {
 					case 0:
 						switch (a) {
 							case 0x1:
-								console.log('JSR');
 								if (this.ram.SP == 0) {
 									this.ram.SP = maxWord;
 								} else {
@@ -415,7 +366,6 @@ var DCPU16 = (function () {
 						};
 						break;
 					case 0x1: // SET
-						console.log('set', addrA.toString(16), valB.toString(16));
 						this.setWord(addrA, valB);
 						break;
 					case 0x2: // ADD
@@ -429,7 +379,6 @@ var DCPU16 = (function () {
 						this.setWord(addrA, tmp);
 						break;
 					case 0x3: // SUB
-						console.log('sub', addrA.toString(16), valB.toString(16));
 						tmp = this.getWord(addrA) - valB;
 						
 						this.ram.O = 0;
@@ -528,8 +477,6 @@ var DCPU16 = (function () {
 					a = (w & 0x3f0) >> 4,
 					b = (w & 0xfc00) >> 10;
 					
-				console.log('step', w.toString(16));
-					
 				this.exec(op, a, b);
 			};
 			
@@ -538,7 +485,7 @@ var DCPU16 = (function () {
 			if (rom) {
 				this.load(rom);
 			}
-		}	
+		}
 	};
 })();
 
