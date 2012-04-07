@@ -97,7 +97,7 @@ var DCPU16 = (function () {
 		},
 		
 		get = function (param) {
-			var t, ob = '[(', cb = '])';
+			var t, ob = '[(', cb = '])', paramUp;
 			
 			if (!param && !param.slice) {
 				return [0x0];
@@ -108,14 +108,16 @@ var DCPU16 = (function () {
 			if (brackets) {
 				param = trim(param.slice(1, -1));
 			}
+			
+			paramUp = param.toUpperCase();
 
-			if (param in registers) {
+			if (paramUp in registers) {
 				// register
-				t = registers[param];
+				t = registers[paramUp];
 				return brackets ? [t+0x8] : [t];
-			} else if (param in values) {
+			} else if (paramUp in values) {
 				// "special" values POP, PEEK, PUSH, SP, PC, and O
-				return [values[param]];
+				return [values[paramUp]];
 			} else if (param.match(/^0x[0-9a-f]{1,4}$/) || param.match(/^[0-9]{1,5}$/)) {
 				// next word is value
 				t = parseInt(param) & maxWord;
@@ -133,7 +135,7 @@ var DCPU16 = (function () {
 					// _error!
 				}
 				
-				return [0x10 + registers[t[1]], parseInt(t[0])];
+				return [0x10 + registers[trim(t[1]).toUpperCase()], parseInt(t[0])];
 			} else {
 				// label
 				return brackets ? [0x1e, param] : [0x1f, param];
@@ -151,7 +153,7 @@ var DCPU16 = (function () {
 		// assembler
 		asm: function (src) {
 			var lines = src.split('\n'),
-				line, bc = [], rom = [], w, pt = 0, inc,
+				line, bc = [], rom, w, pt = 0, inc,
 				i, j, token, resolve = [],
 				labels = {};
 			
@@ -176,7 +178,13 @@ var DCPU16 = (function () {
 					continue;
 				}
 				
-				w = opcodes[token.op];
+				if (token.op.toUpperCase() == 'DAT') {
+					rom = params.join(',');
+					//bc[pt++] = 
+					continue;
+				}
+				
+				w = opcodes[token.op.toUpperCase()];
 				bc.push(0);
 				
 				// basic op code
@@ -245,6 +253,7 @@ var DCPU16 = (function () {
 				//}
 			}
 			
+			rom = [];
 			for (i = 0; i < bc.length; i++) {
 				rom.push((bc[i] >> 8) & 0xff);
 				rom.push(bc[i] & 0xff);
