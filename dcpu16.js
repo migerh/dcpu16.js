@@ -1,8 +1,12 @@
 var DCPU16 = (function () {
+	// private stuff
 	var maxWord = 0xffff,
 		ramSize = 0x10000,
 		wordSize = 2,
+		
+		o,
 	
+		// opcodes translation table
 		opcodes = {
 			// basic opcodes
 			SET: 0x1,
@@ -25,7 +29,8 @@ var DCPU16 = (function () {
 			JSR: 0x01 << 4
 		},
 		
-		regs = {
+		// registers
+		registers = {
 			A: 0x0,
 			B: 0x1,
 			C: 0x2,
@@ -36,6 +41,7 @@ var DCPU16 = (function () {
 			J: 0x7
 		},
 		
+		// special stack ops and pointers/flags
 		values = {
 			POP: 0x18,
 			PEEK: 0x19,
@@ -54,6 +60,14 @@ var DCPU16 = (function () {
 		
 		tab2ws = function (str) {
 			return str.replace(/\t/, " ");
+		},
+		
+		_def = function (val, def) {
+			if (typeof val == 'undefined' || typeof val == 'null') {
+				return def;
+			}
+			
+			return val;
 		},
 		
 		next = function (str) {
@@ -81,22 +95,21 @@ var DCPU16 = (function () {
 		},
 		
 		get = function (param) {
-			var t;
+			var t, ob = '[(', cb = '])';
 			
 			if (!param && !param.slice) {
 				return [0x0];
 			}
 			
-			var brackets = 	param.slice(0, 1) == '[' && param.slice(-1) == ']' ||
-							param.slice(0, 1) == '(' && param.slice(-1) == ')';
+			var brackets = 	ob.indexOf(param.slice(0, 1)) > -1 && cb.indexOf(param.slice(-1)) > -1;
 			
 			if (brackets) {
 				param = trim(param.slice(1, -1));
 			}
 
-			if (param in regs) {
+			if (param in registers) {
 				// register
-				t = regs[param];
+				t = registers[param];
 				return brackets ? [t+0x8] : [t];
 			} else if (param in values) {
 				// "special" values POP, PEEK, PUSH, SP, PC, and O
@@ -114,11 +127,11 @@ var DCPU16 = (function () {
 				// this [nextword+register] thing
 				t = param.split('+');
 				
-				if (!regs[t[1]]) {
+				if (!registers[t[1]]) {
 					// _error!
 				}
 				
-				return [0x10 + regs[t[1]], parseInt(t[0])];
+				return [0x10 + registers[t[1]], parseInt(t[0])];
 			} else {
 				// label
 				return brackets ? [0x1e, param] : [0x1f, param];
@@ -127,7 +140,8 @@ var DCPU16 = (function () {
 			return [0x0];
 		},
 		
-		base64enc: function (data) {
+		// unused for now
+		base64enc = function (data) {
 			// taken from https://github.com/Stuk/jszip
 			var _keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
 				output = "",
@@ -154,10 +168,9 @@ var DCPU16 = (function () {
 	   		}
 
 			return output;
-		};
-
-	return {
-		decLabelRef: function (labels, ptr) {
+		},
+		
+		decLabelRef = function (labels, ptr) {
 			var l;
 			
 			for (l in labels) {
@@ -167,11 +180,26 @@ var DCPU16 = (function () {
 					}
 				}
 			}
-		},
-		
+		};
+	
+	// reverse lookup for registers
+	for (o in registers) {
+		if (registers.hasOwnProperty(o)) {
+			registers[registers[o]] = o;
+		}
+	}
+
+	for (o in values) {
+		if (values.hasOwnProperty(o)) {
+			values[values[o]] = o;
+		}
+	}
+
+	return {
+		// assembler
 		asm: function (src) {
 			var lines = src.split('\n'),
-				line, bc = [], w, pt = 0, inc,
+				line, bc = [], rom = [], w, pt = 0, inc,
 				i, j, token, resolve = [],
 				labels = {};
 			
@@ -190,6 +218,10 @@ var DCPU16 = (function () {
 				
 				if (token.label) {
 					labels[token.label] = pt;
+				}
+				
+				if (token.op == '') {
+					continue;
 				}
 				
 				w = opcodes[token.op];
@@ -261,27 +293,187 @@ var DCPU16 = (function () {
 				//}
 			}
 			
-			return bc;
+			for (i = 0; i < bc.length; i++) {
+				rom.push((bc[i] >> 8) & 0xff);
+				rom.push(bc[i] & 0xff);
+			}
+			
+			return rom;
 		},
 		
-		Instance: function (rom) {
+		// emulator
+		PC: function (rom) {
 			this.ramSize = ramSize;
 			this.wordSize = wordSize;
-			
-			this.pc = 0;
-			this.sp = 0;
-			this.o: 0;
-			this.reg: {
-				a: 0,
-				b: 0,
-				c: 0,
-				x: 0,
-				y: 0,
-				z: 0,
-				i: 0,
-				j: 0
+						
+			this.clear = function () {
+				var i;
+				
+				this.ram = new Array(this.ramSize);
+				
+				// use the registers as properties of the RAM
+				// this simplifies getWord and setWord
+				this.ram.PC = 0;
+				this.ram.SP = 0;
+				this.ram.O = 0;
+				
+				for (i in registers) {
+					if (registers.hasOwnProperty(i)) {
+						this.ram[i] = 0;
+					}
+				}
 			};
-			this.ram = new Array(ramSize*wordSize);
+			
+			this.load = function (rom, where) {
+				var i = 0;
+				
+				where = _def(where, 0);
+				
+				while (i < rom.length) {
+					this.ram[where+i] = ((rom[2*i] & 0xff) << 8) | ((rom[2*i+1] || 0) & 0xff);
+					i++;
+				}
+			};
+			
+			this.setWord = function (ptr, val) {
+				console.log('setWord', ptr, val);
+				this.ram[ptr] = val & maxWord;
+			};
+			
+			this.getWord = function (ptr) {
+				return this.ram[ptr];
+			};
+			
+			this.getValue = function (val) {
+				var r;
+				
+				if (val < 0x1f) {
+					r = this.ram[this.getAddress(val)];
+				} else if (val == 0x1f) {
+					r = this.ram[this.ram.PC++];
+				} else if (val >= 0x20 && val < 0x40) {
+					r = val - 0x20;
+				}
+				
+				return r;
+			};
+			
+			this.getAddress = function (val) {
+				var r;
+			
+				if (val >= 0 && val < 0x8) {
+					r = registers[val];
+				} else if (val >= 0x8 && val < 0x10) {
+					r = this.ram[registers[val-8]];
+				} else if (val >= 0x10 && val < 0x18) {
+					r = this.getWord(this.ram.PC++) + this.ram[registers[val-0x10]];
+				} else if (val == 0x18) {
+					r = this.ram.SP++;
+				} else if (val == 0x19) {
+					r = this.ram.SP;
+				} else if (val == 0x1a) {
+					r = --this.ram.SP;
+				} else if (val >= 0x1b && val <= 0x1d) {
+					r = values[val];
+				} else if (val == 0x1e) {
+					r = this.ram[this.ram.PC++];
+				}
+				
+				return r;
+			};
+			
+			this.exec = function (op, a, b) {
+				var tmp, valA, valB;
+				
+				console.log(op, a, b);
+				
+				valA = this.getAddress(a);
+				valB = this.getValue(b);
+				
+				// fail silently
+				if (!valA) {
+					return;
+				}
+				
+				switch (op) {
+					case 0:
+						switch (a) {
+						};
+						break;
+					case 0x1: // SET
+						console.log('set', valA, valB);
+						this.setWord(valA, valB);
+						break;
+					case 0x2: // ADD
+						tmp = this.getWord(valA) + valB;
+						
+						this.ram.O = 0;
+						if (tmp & maxWord+1) {
+							this.ram.O = 1;
+						}
+						
+						this.setWord(valA, tmp);
+						break;
+					case 0x3: // SUB
+						tmp = this.getWord(valA) - valB;
+						
+						this.ram.O = 0;
+						if (tmp < 0) {
+							this.ram.O = maxWord;
+							tmp = maxWord + tmp;
+						}
+						
+						this.setWord(valA, tmp);
+						break;
+					case 0x4: // MUL
+						tmp = this.getWord(valA) * valB;
+						this.ram.O = ((tmp) >> 16) & maxWord;
+						
+						this.setWord(valA, tmp);
+						break;
+					case 0x5: // DIV
+						if (valB == 0) {
+							tmp = 0;
+						} else {
+							tmp = Math.floor(valA/valB);
+							this.ram.O = (Math.floor(this.getWord(valA) << 16)/valB) & maxWord;
+						}
+						
+						this.setWord(valA, tmp);
+						break;
+					case 0x6: // MOD
+						break;
+					case 0x7: // SHL
+						break;
+					case 0x8: // SHR
+						break;
+					case 0x9: // AND
+						break;
+					case 0xa: // BOR
+						break;
+					case 0xb: // XOR
+						break;
+					case 0xc: // IFE
+						break;
+					case 0xd: // IFN
+						break;
+					case 0xe: // IFG
+						break;
+					case 0xf: // IFB
+						break;
+				};
+			};
+			
+			this.step = function () {
+				var w = this.getWord(this.ram.PC++),
+					op = w & 0xf,
+					a = (w & 0x3f0) >> 4,
+					b = (w & 0xfc00) >> 10;
+					
+				this.exec(op, a, b);
+			};
+			
+			this.clear();
 			
 			if (rom) {
 				this.load(rom);
@@ -290,22 +482,3 @@ var DCPU16 = (function () {
 	};
 })();
 
-DCPU16.Instance.prototype.clear = function () {
-	this.pc = 0;
-	this.sp = 0;
-	this.o = 0;
-	this.reg.a = 0;
-	this.reg.b = 0;
-	this.reg.c = 0;
-	this.reg.x = 0;
-	this.reg.y = 0;
-	this.reg.z = 0;
-	this.reg.i = 0;
-	this.reg.j = 0;
-			
-	this.ram = new Array(this.ramSize);
-};
-
-DCPU16.Instance.prototype.load = function (rom) {
-	
-};
