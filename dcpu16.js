@@ -305,6 +305,7 @@ var DCPU16 = (function () {
 		PC: function (rom) {
 			this.ramSize = ramSize;
 			this.wordSize = wordSize;
+			this.skipNext = false;
 						
 			this.clear = function () {
 				var i;
@@ -383,39 +384,44 @@ var DCPU16 = (function () {
 			};
 			
 			this.exec = function (op, a, b) {
-				var tmp, valA, valB;
+				var tmp, addrA, valB;
 				
 				console.log(op, a, b);
 				
-				valA = this.getAddress(a);
+				addrA = this.getAddress(a);
 				valB = this.getValue(b);
 				
 				// fail silently
-				if (!valA) {
+				if (!addrA || this.skipNext) {
+					this.skipNext = false;
 					return;
 				}
 				
 				switch (op) {
 					case 0:
 						switch (a) {
+							case 0x1:
+								this.ram[this.ram.SP++] = this.ram.PC;
+								this.ram.PC = valB;
+							break;
 						};
 						break;
 					case 0x1: // SET
-						console.log('set', valA, valB);
-						this.setWord(valA, valB);
+						console.log('set', addrA, valB);
+						this.setWord(addrA, valB);
 						break;
 					case 0x2: // ADD
-						tmp = this.getWord(valA) + valB;
+						tmp = this.getWord(addrA) + valB;
 						
 						this.ram.O = 0;
 						if (tmp & maxWord+1) {
 							this.ram.O = 1;
 						}
 						
-						this.setWord(valA, tmp);
+						this.setWord(addrA, tmp);
 						break;
 					case 0x3: // SUB
-						tmp = this.getWord(valA) - valB;
+						tmp = this.getWord(addrA) - valB;
 						
 						this.ram.O = 0;
 						if (tmp < 0) {
@@ -423,43 +429,86 @@ var DCPU16 = (function () {
 							tmp = maxWord + tmp;
 						}
 						
-						this.setWord(valA, tmp);
+						this.setWord(addrA, tmp);
 						break;
 					case 0x4: // MUL
-						tmp = this.getWord(valA) * valB;
+						tmp = this.getWord(addrA) * valB;
 						this.ram.O = ((tmp) >> 16) & maxWord;
 						
-						this.setWord(valA, tmp);
+						this.setWord(addrA, tmp);
 						break;
 					case 0x5: // DIV
 						if (valB == 0) {
 							tmp = 0;
 						} else {
-							tmp = Math.floor(valA/valB);
-							this.ram.O = (Math.floor(this.getWord(valA) << 16)/valB) & maxWord;
+							tmp = Math.floor(this.getWord(addrA)/valB);
+							this.ram.O = (Math.floor(this.getWord(addrA) << 16)/valB) & maxWord;
 						}
 						
-						this.setWord(valA, tmp);
+						this.setWord(addrA, tmp);
 						break;
 					case 0x6: // MOD
+						if (valB == 0) {
+							tmp = 0;
+						} else {
+							tmp = this.getWord(addrA) % valB;
+						}
+						
+						this.setWord(addrA, tmp);
 						break;
+					// careful here, the "number" datatype in javascript is not a pure
+					// integer and thus bit ops like << and >> are not guaranteed to work
+					// as expected.
 					case 0x7: // SHL
+						tmp = this.getWord(addrA) << valB;
+						this.ram.O = (tmp>>16) & maxWord;
+						
+						this.setWord(addrA, tmp);
 						break;
 					case 0x8: // SHR
+						tmp = this.getWord(addrA) >> valB;
+						this.ram.O = ((this.getWord(addrA)<<16)>>valB) & maxWord;
+						
+						this.setWord(addrA, tmp);
 						break;
 					case 0x9: // AND
+						tmp = this.getWord(addrA) & valB;
+						
+						this.setWord(addrA, tmp);
 						break;
 					case 0xa: // BOR
+						tmp = this.getWord(addrA) | valB;
+						
+						this.setWord(addrA, tmp);
 						break;
 					case 0xb: // XOR
+						tmp = this.getWord(addrA) ^ valB;
+						
+						this.setWord(addrA, tmp);
 						break;
 					case 0xc: // IFE
+						if (this.getWord(addrA) != valB) {
+							this.skipNext = true;
+							this.step();
+						}
 						break;
 					case 0xd: // IFN
+						if (this.getWord(addrA) == valB) {
+							this.skipNext = true;
+							this.step();
+						}
 						break;
 					case 0xe: // IFG
+						if (this.getWord(addrA) <= valB) {
+							this.skipNext = true;
+							this.step();
+						}
 						break;
 					case 0xf: // IFB
+						if (this.getWord(addrA) & valB == 0) {
+							this.skipNext = true;
+							this.step();
+						}
 						break;
 				};
 			};
