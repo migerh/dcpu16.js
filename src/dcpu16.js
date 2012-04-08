@@ -1,14 +1,20 @@
+/*jshint forin:true, noarg:true, noempty:true, undef:true, curly:true, browser:true, devel:true, indent:4, maxerr:50 */
+
 var DCPU16 = (function () {
+	"use strict";
+
 	// private stuff
 	var _ = {
 		maxWord: 0xffff,
 		ramSize: 0x10000,
 		wordSize: 2,
 		
+		useDebug: false,
+		
 		debug: function () {
-			return;
-			if (typeof console != 'undefined' && console.log)
+			if (_.useDebug && typeof console != 'undefined' && console.log) {
 				console.log(arguments);
+			}
 		},
 		
 		// opcodes translation table
@@ -60,6 +66,20 @@ var DCPU16 = (function () {
 		
 		values_rev: [],
 		
+		parseInt: function (str) {
+			var r;
+			
+			if (str.match(/^0x/)) {
+				r = parseInt(str, 16);
+			} else if (str[0] === '0') {
+				r = parseInt(str, 8);
+			} else {
+				r = parseInt(str, 10);
+			}
+			
+			return r;
+		},
+		
 		trim: function (str) {
 			str = str.replace(/^\s+/, "");
 			str = str.replace(/\s+$/, "");
@@ -88,7 +108,7 @@ var DCPU16 = (function () {
 
 			if (line[0] == ':') {
 				label = _.next(line.slice(1));
-				line = _.trim(line.slice(label.length+1));
+				line = _.trim(line.slice(label.length + 1));
 			}
 			
 			op = _.next(line);
@@ -122,13 +142,13 @@ var DCPU16 = (function () {
 				// register
 				_.debug('found register', paramUp);
 				t = _.registers[paramUp];
-				return brackets ? [t+0x8] : [t];
+				return brackets ? [t + 0x8] : [t];
 			} else if (paramUp in _.values) {
 				// "special" values POP, PEEK, PUSH, SP, PC, and O
 				return [_.values[paramUp]];
 			} else if (param.match(/^0x[0-9a-fA-F]{1,4}$/) || param.match(/^[0-9]{1,5}$/)) {
 				// next word is value
-				t = parseInt(param) & _.maxWord;
+				t = _.parseInt(param) & _.maxWord;
 				_.debug('found value', t.toString(16));
 
 				if (!brackets && t >= 0x0 && t < 0x20) {
@@ -144,8 +164,10 @@ var DCPU16 = (function () {
 					// _error!
 				}
 				
+				// jshint is complaining about an empty block here
+				// i guess it's the {x,y} things inside the regex
 				if (t[0].match(/^0x[0-9a-fA-F]{1,4}$/) || t[0].match(/^[0-9]{1,5}$/)) {
-					return [0x10 + _.registers[_.trim(t[1]).toUpperCase()], parseInt(t[0])];
+					return [0x10 + _.registers[_.trim(t[1]).toUpperCase()], _.parseInt(t[0])];
 				} else {
 					return [0x10 + _.registers[_.trim(t[1]).toUpperCase()], t[0]];
 				}
@@ -169,7 +191,7 @@ var DCPU16 = (function () {
 		// assembler
 		asm: function (src) {
 			var lines = src.split('\n'),
-				line, bc = [], rom, w, pt = 0, inc,
+				line, bc = [], rom, w, pt = 0, inc, p,
 				i, j, k, token, resolve = [],
 				labels = {};
 			
@@ -180,7 +202,7 @@ var DCPU16 = (function () {
 				line = _.tab2ws(_.trim(lines[i].split(';')[0]));
 				
 				_.debug(line);
-				if (line == '') {
+				if (line === '') {
 					continue;
 				}
 				
@@ -195,7 +217,7 @@ var DCPU16 = (function () {
 				}
 				
 				// apparently it was just a label
-				if (token.op == '') {
+				if (token.op === '') {
 					continue;
 				}
 				
@@ -203,7 +225,7 @@ var DCPU16 = (function () {
 					// extract the strings first
 					w = token.params.join(',').split('"');
 					rom = [];
-					for (j = 1; j < w.length; j = j+2) {
+					for (j = 1; j < w.length; j = j + 2) {
 						rom.push(w[j]);
 						// replace the string with 'str'
 						w.splice(j, 1, 'str');
@@ -221,7 +243,7 @@ var DCPU16 = (function () {
 								pt++;
 							}
 						} else {
-							bc.push(parseInt(w[j]));
+							bc.push(_.parseInt(w[j]));
 							pt++;
 						}
 					}
@@ -238,7 +260,7 @@ var DCPU16 = (function () {
 					for (j = 0; j < 2; j++) {
 						p = _.get(_.trim(token.params[j]));
 					
-						w = w | ((p[0] & 0x3f) << 4+j*6);
+						w = w | ((p[0] & 0x3f) << 4 + j * 6);
 						if (typeof p[1] != 'undefined') {
 							if (p[1].length && p[1].match && p[1].indexOf) {
 								resolve.push({
@@ -300,7 +322,7 @@ var DCPU16 = (function () {
 					bc.splice(w.pt-inc, 1);
 					inc++;
 				} else {*/
-					bc[w.pt] = labels[w.label];
+				bc[w.pt] = labels[w.label];
 				//}
 			}
 			
@@ -344,7 +366,7 @@ var DCPU16 = (function () {
 				where = _.def(where, 0);
 				
 				while (i < rom.length) {
-					this.ram[where+i] = ((rom[2*i] & 0xff) << 8) | ((rom[2*i+1] || 0) & 0xff);
+					this.ram[where + i] = ((rom[2 * i] & 0xff) << 8) | ((rom[2 * i + 1] || 0) & 0xff);
 					i++;
 				}
 			};
@@ -377,9 +399,9 @@ var DCPU16 = (function () {
 				if (val >= 0 && val < 0x8) {
 					r = _.registers_rev[val];
 				} else if (val >= 0x8 && val < 0x10) {
-					r = this.getWord(_.registers_rev[val-8]);
+					r = this.getWord(_.registers_rev[val - 8]);
 				} else if (val >= 0x10 && val < 0x18) {
-					r = this.getWord(this.ram.PC++) + this.getWord(_.registers_rev[val-0x10]);
+					r = this.getWord(this.ram.PC++) + this.getWord(_.registers_rev[val - 0x10]);
 				} else if (val == 0x18) {
 					this.ram.SP = (this.ram.SP + 1) & this.maxWord;
 					r = this.ram.SP;
@@ -413,126 +435,128 @@ var DCPU16 = (function () {
 				}
 				
 				switch (op) {
-					case 0:
-						switch (a) {
-							case 0x1:
-								if (this.ram.SP == 0) {
-									this.ram.SP = this.maxWord;
-								} else {
-									this.ram.SP -= 1;
-								}
-								this.ram[this.ram.SP] = this.ram.PC;
-								this.ram.PC = valB;
-							break;
-						};
-						break;
-					case 0x1: // SET
-						_.debug('SET', addrA.toString(16), valB.toString(16));
-						this.setWord(addrA, valB);
-						break;
-					case 0x2: // ADD
-						tmp = this.getWord(addrA) + valB;
-						
-						this.ram.O = 0;
-						if (tmp & this.maxWord+1) {
-							this.ram.O = 1;
-						}
-						
-						this.setWord(addrA, tmp);
-						break;
-					case 0x3: // SUB
-						tmp = this.getWord(addrA) - valB;
-						
-						this.ram.O = 0;
-						if (tmp < 0) {
-							this.ram.O = this.maxWord;
-							tmp = this.maxWord + tmp;
-						}
-						
-						this.setWord(addrA, tmp);
-						break;
-					case 0x4: // MUL
-						tmp = this.getWord(addrA) * valB;
-						this.ram.O = ((tmp) >> 16) & this.maxWord;
-						
-						this.setWord(addrA, tmp);
-						break;
-					case 0x5: // DIV
-						if (valB == 0) {
-							tmp = 0;
+				case 0:
+					// jshint complains about this switch that it should be an if
+					// but it's for future non-basic opcodes
+					switch (a) {
+					case 0x1:
+						if (this.ram.SP === 0) {
+							this.ram.SP = this.maxWord;
 						} else {
-							tmp = Math.floor(this.getWord(addrA)/valB);
-							this.ram.O = (Math.floor(this.getWord(addrA) << 16)/valB) & this.maxWord;
+							this.ram.SP -= 1;
 						}
+						this.ram[this.ram.SP] = this.ram.PC;
+						this.ram.PC = valB;
+						break;
+					}
+					break;
+				case 0x1: // SET
+					_.debug('SET', addrA.toString(16), valB.toString(16));
+					this.setWord(addrA, valB);
+					break;
+				case 0x2: // ADD
+					tmp = this.getWord(addrA) + valB;
+					
+					this.ram.O = 0;
+					if (tmp & this.maxWord + 1) {
+						this.ram.O = 1;
+					}
 						
-						this.setWord(addrA, tmp);
-						break;
-					case 0x6: // MOD
-						if (valB == 0) {
-							tmp = 0;
-						} else {
-							tmp = this.getWord(addrA) % valB;
-						}
+					this.setWord(addrA, tmp);
+					break;
+				case 0x3: // SUB
+					tmp = this.getWord(addrA) - valB;
+					
+					this.ram.O = 0;
+					if (tmp < 0) {
+						this.ram.O = this.maxWord;
+						tmp = this.maxWord + tmp;
+					}
+					
+					this.setWord(addrA, tmp);
+					break;
+				case 0x4: // MUL
+					tmp = this.getWord(addrA) * valB;
+					this.ram.O = ((tmp) >> 16) & this.maxWord;
+					
+					this.setWord(addrA, tmp);
+					break;
+				case 0x5: // DIV
+					if (valB === 0) {
+						tmp = 0;
+					} else {
+						tmp = Math.floor(this.getWord(addrA) / valB);
+						this.ram.O = (Math.floor(this.getWord(addrA) << 16) / valB) & this.maxWord;
+					}
+					
+					this.setWord(addrA, tmp);
+					break;
+				case 0x6: // MOD
+					if (valB === 0) {
+						tmp = 0;
+					} else {
+						tmp = this.getWord(addrA) % valB;
+					}
+					
+					this.setWord(addrA, tmp);
+					break;
+				// careful here, the "number" datatype in javascript is not a pure
+				// integer and thus bit ops like << and >> are not guaranteed to work
+				// as expected.
+				case 0x7: // SHL
+					tmp = this.getWord(addrA) << valB;
+					this.ram.O = (tmp >> 16) & this.maxWord;
+					
+					this.setWord(addrA, tmp);
+					break;
+				case 0x8: // SHR
+					tmp = this.getWord(addrA) >> valB;
+					this.ram.O = ((this.getWord(addrA) << 16) >> valB) & this.maxWord;
+					
+					this.setWord(addrA, tmp);
+					break;
+				case 0x9: // AND
+					tmp = this.getWord(addrA) & valB;
 						
-						this.setWord(addrA, tmp);
-						break;
-					// careful here, the "number" datatype in javascript is not a pure
-					// integer and thus bit ops like << and >> are not guaranteed to work
-					// as expected.
-					case 0x7: // SHL
-						tmp = this.getWord(addrA) << valB;
-						this.ram.O = (tmp>>16) & this.maxWord;
-						
-						this.setWord(addrA, tmp);
-						break;
-					case 0x8: // SHR
-						tmp = this.getWord(addrA) >> valB;
-						this.ram.O = ((this.getWord(addrA)<<16)>>valB) & this.maxWord;
-						
-						this.setWord(addrA, tmp);
-						break;
-					case 0x9: // AND
-						tmp = this.getWord(addrA) & valB;
-						
-						this.setWord(addrA, tmp);
-						break;
-					case 0xa: // BOR
-						tmp = this.getWord(addrA) | valB;
-						
-						this.setWord(addrA, tmp);
-						break;
-					case 0xb: // XOR
-						tmp = this.getWord(addrA) ^ valB;
-						
-						this.setWord(addrA, tmp);
-						break;
-					case 0xc: // IFE
-						if (this.getWord(addrA) != valB) {
-							this.skipNext = true;
-							this.step();
-						}
-						break;
-					case 0xd: // IFN
-						if (this.getWord(addrA) == valB) {
-							this.skipNext = true;
-							this.step();
-						}
-						break;
-					case 0xe: // IFG
-						if (this.getWord(addrA) <= valB) {
-							this.skipNext = true;
-							this.step();
-						}
-						break;
-					case 0xf: // IFB
-						if (this.getWord(addrA) & valB == 0) {
-							this.skipNext = true;
-							this.step();
-						}
-						break;
-				};
+					this.setWord(addrA, tmp);
+					break;
+				case 0xa: // BOR
+					tmp = this.getWord(addrA) | valB;
+					
+					this.setWord(addrA, tmp);
+					break;
+				case 0xb: // XOR
+					tmp = this.getWord(addrA) ^ valB;
+					
+					this.setWord(addrA, tmp);
+					break;
+				case 0xc: // IFE
+					if (this.getWord(addrA) !== valB) {
+						this.skipNext = true;
+						this.step();
+					}
+					break;
+				case 0xd: // IFN
+					if (this.getWord(addrA) === valB) {
+						this.skipNext = true;
+						this.step();
+					}
+					break;
+				case 0xe: // IFG
+					if (this.getWord(addrA) <= valB) {
+						this.skipNext = true;
+						this.step();
+					}
+					break;
+				case 0xf: // IFB
+					if (this.getWord(addrA) & valB === 0) {
+						this.skipNext = true;
+						this.step();
+					}
+					break;
+				}
 			};
-			
+		
 			this.step = function () {
 				var w = this.getWord(this.ram.PC++),
 					op = w & 0xf,
@@ -576,7 +600,7 @@ var DCPU16 = (function () {
 						output += '</span><span style="' + lastStyle + '">';
 					}
 					
-					if (i % 32 == 0) {
+					if (i % 32 === 0) {
 						output += '<br />';
 					}
 					
