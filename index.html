@@ -100,7 +100,7 @@ dat 0
 :putc_col
 dat 0
 :newline
-dat 0xA
+dat "\n"
 :putc_color
 dat 0xf100
 
@@ -167,8 +167,7 @@ set PC, mod_hello_loop
 jsr yield
 set PC, mod_hello
 :mod_hello_hwstr
-    dat "Hey everybody, how is it going in DCPU16 land today?"
-    dat 0xA, 0x0
+    dat "Hey everybody, how is it going in DCPU16 land today?\n", 0x0
 :mod_hello_itr
     dat 0
 		</script>
@@ -185,7 +184,7 @@ set PC, mod_hello
 </p>
 <p>
 	<button onclick="asm();">Assemble</button>
-	Run <input type="text" id="steps" value="1" /><button onclick="step();">Steps</button>
+	Run <input type="text" id="steps" value="10000" /><button onclick="step();">Steps</button>
 	<button onclick="print();">Show screen buffer</button>
 </p>
 
@@ -251,6 +250,7 @@ set PC, mod_hello
 		};
 		
 	load('example-breaking');
+	asm();
 </script>
 </body>
 </html>

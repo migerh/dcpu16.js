@@ -223,8 +223,20 @@ var DCPU16 = (function () {
 				
 				if (token.op.toUpperCase() == 'DAT') {
 					// extract the strings first
-					w = token.params.join(',').split('"');
+					w = token.params.join(',');
 					rom = [];
+
+					// escape escape sequences
+					w = w.replace(/\\"/g, '", 0x22, "')
+						.replace(/\\'/g, '", 0x27, "')
+						.replace(/\\n/g, '", 0xA, "')
+						.replace(/\\r/g, '", 0xD, "')
+						.replace(/\\t/g, '", 0x9, "')
+						.replace(/\\\\/g, '", 0x5C, "')
+						.replace(/\\0/g, '", 0x0, "');
+					
+					w = w.split('"');
+					
 					for (j = 1; j < w.length; j = j + 2) {
 						rom.push(w[j]);
 						// replace the string with 'str'
@@ -243,7 +255,7 @@ var DCPU16 = (function () {
 								pt++;
 							}
 						} else {
-							bc.push(_.parseInt(w[j]));
+							bc.push(_.parseInt(_.trim(w[j])));
 							pt++;
 						}
 					}
@@ -602,9 +614,9 @@ var DCPU16 = (function () {
 						output += '</span><span style="' + lastStyle + '">';
 					}
 					
-					if (i % 32 === 0) {
+					/*if (i % 32 === 0) {
 						output += '<br />';
-					}
+					}*/
 					
 					output += String.fromCharCode(val & 0x7f);
 				}
