@@ -13,7 +13,7 @@ var DCPU16 = (function () {
 		
 		debug: function () {
 			if (_.useDebug && typeof console != 'undefined' && console.log) {
-				console.log(arguments);
+				console.log.apply(console, arguments);
 			}
 		},
 		
@@ -310,6 +310,8 @@ var DCPU16 = (function () {
 			
 			inc = 0;
 			
+			_.debug(labels);
+			
 			for (i = 0; i < resolve.length; i++) {
 				w = resolve[i];
 				/*
@@ -403,14 +405,14 @@ var DCPU16 = (function () {
 				} else if (val >= 0x10 && val < 0x18) {
 					r = this.getWord(this.ram.PC++) + this.getWord(_.registers_rev[val - 0x10]);
 				} else if (val == 0x18) {
-					this.ram.SP = (this.ram.SP + 1) & this.maxWord;
 					r = this.ram.SP;
+					this.ram.SP = (this.ram.SP + 1) & this.maxWord;
 				} else if (val == 0x19) {
 					r = this.ram.SP;
 				} else if (val == 0x1a) {
 					this.ram.SP -= 1;
 					if (this.ram.SP < 0) {
-						this.ram.SP = this.maxWord + this.ram.SP;
+						this.ram.SP = this.maxWord;
 					}
 					r = this.ram.SP;
 				} else if (val >= 0x1b && val <= 0x1d) {
