@@ -120,6 +120,7 @@ var DCPU16 = (function () {
 
 			if (paramUp in _.registers) {
 				// register
+				_.debug('found register', paramUp);
 				t = _.registers[paramUp];
 				return brackets ? [t+0x8] : [t];
 			} else if (paramUp in _.values) {
@@ -128,6 +129,7 @@ var DCPU16 = (function () {
 			} else if (param.match(/^0x[0-9a-fA-F]{1,4}$/) || param.match(/^[0-9]{1,5}$/)) {
 				// next word is value
 				t = parseInt(param) & _.maxWord;
+				_.debug('found value', t.toString(16));
 
 				if (!brackets && t >= 0x0 && t < 0x20) {
 					return [0x20 + t];
@@ -226,7 +228,7 @@ var DCPU16 = (function () {
 					continue;
 				}
 				
-				_.debug(token.op.toUpperCase());
+				_.debug(token);
 				
 				w = _.opcodes[token.op.toUpperCase()];
 				bc.push(0);
@@ -237,7 +239,7 @@ var DCPU16 = (function () {
 						p = _.get(_.trim(token.params[j]));
 					
 						w = w | ((p[0] & 0x3f) << 4+j*6);
-						if (p[1]) {
+						if (typeof p[1] != 'undefined') {
 							if (p[1].length && p[1].match && p[1].indexOf) {
 								resolve.push({
 									label: p[1],
@@ -248,7 +250,8 @@ var DCPU16 = (function () {
 								bc.push(0x0);
 								inc++;
 							} else {
-								bc.push(p[1] & maxWord);
+								_.debug('push literal', p[1]);
+								bc.push(p[1] & _.maxWord);
 								inc++;
 							}
 						}
@@ -259,7 +262,7 @@ var DCPU16 = (function () {
 					_.debug(p, p[1].isLabel);
 
 					w = w | ((p[0] & 0x3f) << 10);
-					if (p[1]) {
+					if (typeof p[1] != 'undefined') {
 						// move this into a new function and merge it with above
 						if (p[1].length && p[1].match && p[1].indexOf) {
 							_.debug('push label');
@@ -273,7 +276,7 @@ var DCPU16 = (function () {
 							inc++;
 						} else {
 							_.debug('write literal');
-							bc.push(p[1] & maxWord);
+							bc.push(p[1] & _.maxWord);
 							inc++;
 						}
 					}
