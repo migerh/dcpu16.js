@@ -32,5 +32,10 @@ be accessed as properties of the ram:
 
 	var valueOfRegisterA = PC.ram.A;
 
+To convert the content of the screen buffer to a html formatted string, use
 	PC.screen2html();
-Returns a string containing the html formatted content of the screen buffer.
+
+Acknowledgements
+================
+
+dcpu16.js uses test cases from [krasin](https://github.com/krasin/dcpu16-tests).
