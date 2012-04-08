@@ -1,17 +1,18 @@
 var DCPU16 = (function () {
 	// private stuff
-	var maxWord = 0xffff,
-		ramSize = 0x10000,
-		wordSize = 2,
+	var _ = {
+		maxWord: 0xffff,
+		ramSize: 0x10000,
+		wordSize: 2,
 		
-		_debug = function () {
+		debug: function () {
 			return;
 			if (typeof console != 'undefined' && console.log)
 				console.log(arguments);
 		},
 		
 		// opcodes translation table
-		opcodes = {
+		opcodes: {
 			// basic opcodes
 			SET: 0x1,
 			ADD: 0x2,
@@ -34,7 +35,7 @@ var DCPU16 = (function () {
 		},
 		
 		// registers
-		registers = {
+		registers: {
 			A: 0x0,
 			B: 0x1,
 			C: 0x2,
@@ -45,10 +46,10 @@ var DCPU16 = (function () {
 			J: 0x7
 		},
 		
-		registers_rev = ['A', 'B', 'C', 'X', 'Y', 'Z', 'I', 'J'],
+		registers_rev: ['A', 'B', 'C', 'X', 'Y', 'Z', 'I', 'J'],
 		
 		// special stack ops and pointers/flags
-		values = {
+		values: {
 			POP: 0x18,
 			PEEK: 0x19,
 			PUSH: 0x1a,
@@ -57,20 +58,20 @@ var DCPU16 = (function () {
 			O: 0x1d
 		},
 		
-		values_rev = [],
+		values_rev: [],
 		
-		trim = function (str) {
+		trim: function (str) {
 			str = str.replace(/^\s+/, "");
 			str = str.replace(/\s+$/, "");
 
 			return str;
 		},
 		
-		tab2ws = function (str) {
+		tab2ws: function (str) {
 			return str.replace(/\t/, " ");
 		},
 		
-		def = function (val, def) {
+		def: function (val, def) {
 			if (typeof val == 'undefined' || typeof val == 'null') {
 				return def;
 			}
@@ -78,20 +79,20 @@ var DCPU16 = (function () {
 			return val;
 		},
 		
-		next = function (str) {
-			return trim(str).split(' ')[0];
+		next: function (str) {
+			return _.trim(str).split(' ')[0];
 		},
 
-		tokenize = function (line) {
+		tokenize: function (line) {
 			var label, op = 'NOP', params = [];
 
 			if (line[0] == ':') {
-				label = next(line.slice(1));
-				line = trim(line.slice(label.length+1));
+				label = _.next(line.slice(1));
+				line = _.trim(line.slice(label.length+1));
 			}
 			
-			op = next(line);
-			line = trim(line.slice(op.length));
+			op = _.next(line);
+			line = _.trim(line.slice(op.length));
 			
 			params = line.split(',');
 			
@@ -102,31 +103,31 @@ var DCPU16 = (function () {
 			};
 		},
 		
-		get = function (param) {
+		get: function (param) {
 			var t, ob = '[(', cb = '])', paramUp;
 			
 			if (!param && !param.slice) {
 				return [0x0];
 			}
 			
-			var brackets = 	ob.indexOf(param.slice(0, 1)) > -1 && cb.indexOf(param.slice(-1)) > -1;
+			var brackets = ob.indexOf(param.slice(0, 1)) > -1 && cb.indexOf(param.slice(-1)) > -1;
 			
 			if (brackets) {
-				param = trim(param.slice(1, -1));
+				param = _.trim(param.slice(1, -1));
 			}
 			
 			paramUp = param.toUpperCase();
 
-			if (paramUp in registers) {
+			if (paramUp in _.registers) {
 				// register
-				t = registers[paramUp];
+				t = _.registers[paramUp];
 				return brackets ? [t+0x8] : [t];
-			} else if (paramUp in values) {
+			} else if (paramUp in _.values) {
 				// "special" values POP, PEEK, PUSH, SP, PC, and O
-				return [values[paramUp]];
-			} else if (param.match(/^0x[0-9a-f]{1,4}$/) || param.match(/^[0-9]{1,5}$/)) {
+				return [_.values[paramUp]];
+			} else if (param.match(/^0x[0-9a-fA-F]{1,4}$/) || param.match(/^[0-9]{1,5}$/)) {
 				// next word is value
-				t = parseInt(param) & maxWord;
+				t = parseInt(param) & _.maxWord;
 
 				if (!brackets && t >= 0x0 && t < 0x20) {
 					return [0x20 + t];
@@ -137,27 +138,30 @@ var DCPU16 = (function () {
 				// this [nextword+register] thing
 				t = param.split('+');
 				
-				if (!registers[t[1]]) {
+				if (!_.registers[t[1]]) {
 					// _error!
 				}
 				
-				if (t[0].match(/^0x[0-9a-f]{1,4}$/) || t[0].match(/^[0-9]{1,5}$/)) {
-					return [0x10 + registers[trim(t[1]).toUpperCase()], parseInt(t[0])];
+				if (t[0].match(/^0x[0-9a-fA-F]{1,4}$/) || t[0].match(/^[0-9]{1,5}$/)) {
+					return [0x10 + _.registers[_.trim(t[1]).toUpperCase()], parseInt(t[0])];
 				} else {
-					return [0x10 + registers[trim(t[1]).toUpperCase()], t[0]];
+					return [0x10 + _.registers[_.trim(t[1]).toUpperCase()], t[0]];
 				}
 			} else {
 				// label
+				_.debug('rec label');
+				param.isLabel = true;
 				return brackets ? [0x1e, param] : [0x1f, param];
 			}
 			
 			return [0x0];
-		};
+		}
+	};
 
 	// very hacky
-	values_rev[0x1b] = 'SP';
-	values_rev[0x1c] = 'PC';
-	values_rev[0x1d] = 'O';
+	_.values_rev[0x1b] = 'SP';
+	_.values_rev[0x1c] = 'PC';
+	_.values_rev[0x1d] = 'O';
 
 	return {
 		// assembler
@@ -171,14 +175,15 @@ var DCPU16 = (function () {
 			for (i = 0; i < lines.length; i++) {
 				// get rid of the comment and remove alle whitespaces
 				// and convert remaining tabs to whitespaces
-				line = tab2ws(trim(lines[i].split(';')[0]));
+				line = _.tab2ws(_.trim(lines[i].split(';')[0]));
 				
+				_.debug(line);
 				if (line == '') {
 					continue;
 				}
 				
 				inc = 1;
-				token = tokenize(line);
+				token = _.tokenize(line);
 				
 				// set the current execution pointer
 				// this assumes that the rom is always
@@ -207,10 +212,10 @@ var DCPU16 = (function () {
 					
 					// put it into the byte array
 					for (j = 0; j < w.length; j++) {
-						if (trim(w[j]) == 'str') {
+						if (_.trim(w[j]) == 'str') {
 							w[j] = rom.shift();
 							for (k = 0; k < w[j].length; k++) {
-								bc.push(w[j].charCodeAt(k) & maxWord);
+								bc.push(w[j].charCodeAt(k) & _.maxWord);
 								pt++;
 							}
 						} else {
@@ -221,17 +226,19 @@ var DCPU16 = (function () {
 					continue;
 				}
 				
-				w = opcodes[token.op.toUpperCase()];
+				_.debug(token.op.toUpperCase());
+				
+				w = _.opcodes[token.op.toUpperCase()];
 				bc.push(0);
 				
 				// basic op code
 				if (w > 0x0 && w < 0x10) {
 					for (j = 0; j < 2; j++) {
-						p = get(trim(token.params[j]));
+						p = _.get(_.trim(token.params[j]));
 					
 						w = w | ((p[0] & 0x3f) << 4+j*6);
 						if (p[1]) {
-							if (p[1].length && p[1].slice && p[1].match) {
+							if (p[1].length && p[1].match && p[1].indexOf) {
 								resolve.push({
 									label: p[1],
 									oppt: pt,
@@ -247,12 +254,15 @@ var DCPU16 = (function () {
 						}
 					}
 				} else {
-					p = get(trim(token.params[0]));
+					_.debug(token.params);
+					p = _.get(_.trim(token.params[0]));
+					_.debug(p, p[1].isLabel);
 
 					w = w | ((p[0] & 0x3f) << 10);
 					if (p[1]) {
 						// move this into a new function and merge it with above
-						if (p[1].length && p[1].slice && p[1].match) {
+						if (p[1].length && p[1].match && p[1].indexOf) {
+							_.debug('push label');
 							resolve.push({
 								label: p[1],
 								oppt: pt,
@@ -262,6 +272,7 @@ var DCPU16 = (function () {
 							bc.push(0x0);
 							inc++;
 						} else {
+							_.debug('write literal');
 							bc.push(p[1] & maxWord);
 							inc++;
 						}
@@ -301,8 +312,9 @@ var DCPU16 = (function () {
 		
 		// emulator
 		PC: function (rom) {
-			this.ramSize = ramSize;
-			this.wordSize = wordSize;
+			this.ramSize = _.ramSize;
+			this.wordSize = _.wordSize;
+			this.maxWord = _.maxWord;
 			this.skipNext = false;
 						
 			this.clear = function () {
@@ -316,8 +328,8 @@ var DCPU16 = (function () {
 				this.ram.SP = 0;
 				this.ram.O = 0;
 				
-				for (i in registers) {
-					if (registers.hasOwnProperty(i)) {
+				for (i in _.registers) {
+					if (_.registers.hasOwnProperty(i)) {
 						this.ram[i] = 0;
 					}
 				}
@@ -326,7 +338,7 @@ var DCPU16 = (function () {
 			this.load = function (rom, where) {
 				var i = 0;
 				
-				where = def(where, 0);
+				where = _.def(where, 0);
 				
 				while (i < rom.length) {
 					this.ram[where+i] = ((rom[2*i] & 0xff) << 8) | ((rom[2*i+1] || 0) & 0xff);
@@ -335,7 +347,7 @@ var DCPU16 = (function () {
 			};
 			
 			this.setWord = function (ptr, val) {
-				this.ram[ptr] = val & maxWord;
+				this.ram[ptr] = val & this.maxWord;
 			};
 			
 			this.getWord = function (ptr) {
@@ -360,24 +372,24 @@ var DCPU16 = (function () {
 				var r;
 			
 				if (val >= 0 && val < 0x8) {
-					r = registers_rev[val];
+					r = _.registers_rev[val];
 				} else if (val >= 0x8 && val < 0x10) {
-					r = this.getWord(registers_rev[val-8]);
+					r = this.getWord(_.registers_rev[val-8]);
 				} else if (val >= 0x10 && val < 0x18) {
-					r = this.getWord(this.ram.PC++) + this.getWord(registers_rev[val-0x10]);
+					r = this.getWord(this.ram.PC++) + this.getWord(_.registers_rev[val-0x10]);
 				} else if (val == 0x18) {
-					this.ram.SP = (this.ram.SP + 1) & maxWord;
+					this.ram.SP = (this.ram.SP + 1) & this.maxWord;
 					r = this.ram.SP;
 				} else if (val == 0x19) {
 					r = this.ram.SP;
 				} else if (val == 0x1a) {
 					this.ram.SP -= 1;
 					if (this.ram.SP < 0) {
-						this.ram.SP = maxWord + this.ram.SP;
+						this.ram.SP = this.maxWord + this.ram.SP;
 					}
 					r = this.ram.SP;
 				} else if (val >= 0x1b && val <= 0x1d) {
-					r = values_rev[val];
+					r = _.values_rev[val];
 				} else if (val == 0x1e) {
 					r = this.getWord(this.ram.PC++);
 				}
@@ -402,7 +414,7 @@ var DCPU16 = (function () {
 						switch (a) {
 							case 0x1:
 								if (this.ram.SP == 0) {
-									this.ram.SP = maxWord;
+									this.ram.SP = this.maxWord;
 								} else {
 									this.ram.SP -= 1;
 								}
@@ -412,14 +424,14 @@ var DCPU16 = (function () {
 						};
 						break;
 					case 0x1: // SET
-						_debug('SET', addrA.toString(16), valB.toString(16));
+						_.debug('SET', addrA.toString(16), valB.toString(16));
 						this.setWord(addrA, valB);
 						break;
 					case 0x2: // ADD
 						tmp = this.getWord(addrA) + valB;
 						
 						this.ram.O = 0;
-						if (tmp & maxWord+1) {
+						if (tmp & this.maxWord+1) {
 							this.ram.O = 1;
 						}
 						
@@ -430,15 +442,15 @@ var DCPU16 = (function () {
 						
 						this.ram.O = 0;
 						if (tmp < 0) {
-							this.ram.O = maxWord;
-							tmp = maxWord + tmp;
+							this.ram.O = this.maxWord;
+							tmp = this.maxWord + tmp;
 						}
 						
 						this.setWord(addrA, tmp);
 						break;
 					case 0x4: // MUL
 						tmp = this.getWord(addrA) * valB;
-						this.ram.O = ((tmp) >> 16) & maxWord;
+						this.ram.O = ((tmp) >> 16) & this.maxWord;
 						
 						this.setWord(addrA, tmp);
 						break;
@@ -447,7 +459,7 @@ var DCPU16 = (function () {
 							tmp = 0;
 						} else {
 							tmp = Math.floor(this.getWord(addrA)/valB);
-							this.ram.O = (Math.floor(this.getWord(addrA) << 16)/valB) & maxWord;
+							this.ram.O = (Math.floor(this.getWord(addrA) << 16)/valB) & this.maxWord;
 						}
 						
 						this.setWord(addrA, tmp);
@@ -466,13 +478,13 @@ var DCPU16 = (function () {
 					// as expected.
 					case 0x7: // SHL
 						tmp = this.getWord(addrA) << valB;
-						this.ram.O = (tmp>>16) & maxWord;
+						this.ram.O = (tmp>>16) & this.maxWord;
 						
 						this.setWord(addrA, tmp);
 						break;
 					case 0x8: // SHR
 						tmp = this.getWord(addrA) >> valB;
-						this.ram.O = ((this.getWord(addrA)<<16)>>valB) & maxWord;
+						this.ram.O = ((this.getWord(addrA)<<16)>>valB) & this.maxWord;
 						
 						this.setWord(addrA, tmp);
 						break;
@@ -524,8 +536,16 @@ var DCPU16 = (function () {
 					a = (w & 0x3f0) >> 4,
 					b = (w & 0xfc00) >> 10;
 					
-				_debug(op, a, b);
+				_.debug(op, a, b);
 				this.exec(op, a, b);
+			};
+			
+			this.steps = function (steps) {
+				var i;
+				
+				for (i = 0; i < steps; i++) {
+					this.step();
+				}
 			};
 			
 			this.screen2html =  function () {
