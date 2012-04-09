@@ -171,6 +171,10 @@ var DCPU16 = (function () {
 	_.values_rev[0x1d] = 'O';
 
 	return {
+		// some of the helper methods might be useful outside the assembler and emulator scope
+		_: {
+			parseInt: _.parseInt
+		},
 		// assembler
 		asm: function (src) {
 			var lines = src.split('\n'),
@@ -360,6 +364,37 @@ var DCPU16 = (function () {
 			this.skipNext = false;
 			this.isRunning = false;
 			this.stepCount = 0;
+			
+			this.events = {};
+			
+			this.on = function (event, handler, scope) {
+				this.events[event] = this.events[event] || [];
+				handler.scope = _.def(scope, this);
+				this.events[event].push(handler);
+			};
+			
+			this.off = function (event, handler) {
+				var i;
+				
+				if (this.events[event]) {
+					for (i = 0; i < this.events[event].length; i++) {
+						if (this.events[event][i] === handler) {
+							this.events[event].splice(i, 1);
+							break;
+						}
+					}
+				}
+			};
+			
+			this.trigger = function (event) {
+				var i;
+				
+				if (this.events[event]) {
+					for (i = 0; i < this.events[event].length; i++) {
+						this.events[event][i].call(this.events[event][i].scope);
+					}
+				}
+			};
 						
 			this.clear = function () {
 				var i;
@@ -578,23 +613,30 @@ var DCPU16 = (function () {
 				}
 			};
 		
-			this.step = function () {
+			this.step = function (trigger) {
 				var w = this.getWord(this.ram.PC++),
 					op = w & 0xf,
 					a = (w & 0x3f0) >> 4,
 					b = (w & 0xfc00) >> 10;
+				
+				trigger = _.def(trigger, true);
 					
 				_.debug(op, a, b);
 				this.exec(op, a, b);
 				this.stepCount++;
+				
+				if (trigger) {
+					this.trigger('update');
+				}
 			};
 			
 			this.steps = function (steps) {
 				var i;
 				
 				for (i = 0; i < steps; i++) {
-					this.step();
+					this.step(false);
 				}
+				this.trigger('update');
 			};
 			
 			this.start = function () {
