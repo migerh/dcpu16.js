@@ -1,6 +1,7 @@
 <html>
 	<head>
 		<script type="text/javascript" src="src/dcpu16.js"></script>
+		<script type="text/javascript" src="src/base64.js"></script>
 		<script type="text/dcpu-asm" id="example-1">
 		        ; Try some basic stuff
                       set A, 0x30              ; 7c01 0030
@@ -186,6 +187,7 @@ set PC, mod_hello
 	<button onclick="asm();">Assemble</button>
 	Run <input type="text" id="steps" value="10000" /><button onclick="step();">Steps</button>
 	<button onclick="print();">Show screen buffer</button>
+	<button onclick="downloadRom();">Download rom</button>
 </p>
 
 <div id="out" style="width: 400px; border: 1px solid black;"></div>
@@ -247,6 +249,16 @@ set PC, mod_hello
 		print = function () {
 			var out = document.getElementById('out');
 			out.innerHTML = PC.screen2html();
+		},
+		downloadRom = function () {
+			var src = document.getElementById('src').value,
+				out = document.getElementById('out'),
+				bc = DCPU16.asm(src),
+				b64;
+			
+			b64 = Base64.encode(bc);
+			out.innerHTML = b64;
+			window.open('data:application/octet-stream;base64,' + b64,'_blank','height=300,width=400');
 		};
 		
 	load('example-breaking');

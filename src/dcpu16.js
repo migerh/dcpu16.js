@@ -635,3 +635,6 @@ var DCPU16 = (function () {
 	};
 })();
 
+if (typeof module != 'undefined') {
+	module.exports.DCPU16 = DCPU16;
+}
