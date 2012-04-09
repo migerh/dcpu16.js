@@ -269,7 +269,7 @@ set PC, mod_hello
 			out.push('Stack: <br />');
 			if (PC.ram.SP > 0xFF00) {
 				for (i = PC.ram.SP; i < 0x10000; i++ ) {
-					out.push('[' + printValue(PC.getWord(i)) + ']<br />';
+					out.push('[' + printValue(PC.getWord(i)) + ']<br />');
 				}
 			}
 			
