@@ -366,6 +366,7 @@ var DCPU16 = (function () {
 			this.stepCount = 0;
 			
 			this.events = {};
+			this.breakpoints = {};
 			
 			this.on = function (event, handler, scope) {
 				this.events[event] = this.events[event] || [];
@@ -394,6 +395,10 @@ var DCPU16 = (function () {
 						this.events[event][i].call(this.events[event][i].scope);
 					}
 				}
+			};
+			
+			this.toggleBreakpoint = function (addr) {
+				return this.breakpoints[addr] = !this.breakpoints[addr];
 			};
 						
 			this.clear = function () {
@@ -628,33 +633,47 @@ var DCPU16 = (function () {
 				if (trigger) {
 					this.trigger('update');
 				}
+				
+				// step should be executed even if a breakpoint is set
+				if (this.breakpoints[this.ram.PC]) {
+					return false;
+				} else {
+					return true;
+				}
 			};
 			
 			this.steps = function (steps) {
 				var i;
 				
 				for (i = 0; i < steps; i++) {
-					this.step(false);
+					if (!this.step(false)) {
+						return false;
+					}
 				}
 				this.trigger('update');
+				
+				return true;
 			};
 			
 			this.start = function () {
 				var _this = this,
 					timer = 30,
 					runner = function () {
-						if (_this.isRunning) {
-							_this.steps(100);
+						if (_this.isRunning && _this.steps(100)) {
 							setTimeout(runner, timer);
+						} else {
+							_this.stop();
 						}
 					};
 
 				this.isRunning = true;
+				this.step(false);
 				setTimeout(runner, timer);
 			};
 			
 			this.stop = function () {
 				this.isRunning = false;
+				this.trigger('update');
 			};
 			
 			this.screen2html =  function () {

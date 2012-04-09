@@ -11,7 +11,15 @@ Usage
 =====
 
 	var bytecode = DCPU16.asm(src);
-Assembles the source code into a memory image (an array of bytes).
+Assembles the source code into a memory image (an array of bytes). There's also some meta
+information returned in the *meta* property containing the address to line conversion object
+*addr2line*, the line to address conversion object *line2addr* and the entry point in *entry*.
+
+	var line = bytecode.meta.addr2line[0x1F];
+	var addr = bytecode.meta.line2addr[2];
+	var entryline = bytecode.meta.entry;  // equals bytecode.meta.addr2line[0]
+
+Please note that lines without a corresponding address (and vice versa) are undefined.
 
 	var PC = new DCPU16.PC();
 Initializes a new DCPU16 PC.
@@ -39,3 +47,8 @@ Acknowledgements
 ================
 
 dcpu16.js uses test cases from [krasin](https://github.com/krasin/dcpu16-tests).
+Base64 encoding has been borrowed from [Stuk's jszip](https://github.com/Stuk/jszip).
+
+Other projects/libraries used:
+ * [jQuery](http://www.jquery.com)
+ * [Ace](http://ace.ajax.org/)

@@ -12,7 +12,163 @@
 				z-index: 5;
 			}
 		</style>
+	</head>
+<body>
+<p>
+	<a href="javascript:void(0);" onclick="load('example-1');">Ref example</a>
+	<a href="javascript:void(0);" onclick="load('example-screen');">Screen buffer example</a>
+	<a href="javascript:void(0);" onclick="load('example-breaking');">Example that breaks in some emulators</a>
+</p>
+<p>
+	<div id="src" style="width: 800px; height: 400px; float: left;"></div>
+	<pre id="status" style="margin-left: 810px; width: 200px; height: 400px;"></pre>
+</p>
+<p>
+	<button onclick="asm();">Assemble</button>
+	<button onclick="step();">Step</button>
+	<button onclick="start();">Start</button>
+	<button onclick="stop();">Stop</button>
+	<button onclick="downloadRom();">Download rom</button>
+</p>
+
+<button onclick="gotoRam();">Go to</button> <input type="text" value="0" id="jumpto" />
+<button onclick="gotoRam('SP');" onmouseover="highlightRam('SP');" onmousemove="highlightRam('SP');" onmouseout="highlightRam('none');">SP</button>
+<button onclick="gotoRam('PC');" onmouseover="highlightRam('PC');" onmousemove="highlightRam('PC');" onmouseout="highlightRam('none');">PC</button><br />
+<pre id="ram" style="margin-top: 0; width: 400px; height: 170px; font-size: 14px; overflow-x: hidden; overflow-y: scrollbar; float: left;"></pre>
+<div id="out" style="margin-left: 410px; width: 400px; height: 170px; background-color: black; border: 1px solid black;"></div>
+
+<script type="text/javascript">
+	var PC, assembly, editor, marker,
+		Range = require("ace/range").Range,
 		
+		load = function (what) {
+			editor.getSession().setValue($('#' + what).html());
+		},
+		markLine = function (line) {
+			range = new Range(line-1, 0, line, 0);
+			editor.getSession().removeMarker(marker);
+			marker = editor.getSession().addMarker(range, "markline", "line");
+			editor.gotoLine(line);
+		},
+		asm = function () {
+			var src = editor.getSession().getValue(),
+				bc = DCPU16.asm(src);
+
+			assembly = bc;
+			
+			PC = new DCPU16.PC(bc);
+			PC.on('update', printStatus, this);
+			printStatus();
+		},
+		step = function () {
+			PC.step();
+		},
+		start = function () {
+			PC.start();
+		},
+		stop = function () {
+			PC.stop();
+		},
+		printValue = function (v) {
+			var r = v.toString(16),
+				i, l = 4;
+			
+			for (i = r.length; i < l; i++) {
+				r = '0' + r;
+			}
+				
+			return r;
+		},
+		printStatus = function () {
+			var out = [];
+			
+			markLine(assembly.meta.addr2line[PC.ram.PC]);
+			out.push('A  = ' + printValue(PC.ram.A) + '    ');
+			out.push('B  = ' + printValue(PC.ram.B) + '<br />');
+			out.push('C  = ' + printValue(PC.ram.C) + '    ');
+			out.push('X  = ' + printValue(PC.ram.X) + '<br />');
+			out.push('Y  = ' + printValue(PC.ram.Y) + '    ');
+			out.push('Z  = ' + printValue(PC.ram.Z) + '<br />');
+			out.push('I  = ' + printValue(PC.ram.I) + '    ');
+			out.push('J  = ' + printValue(PC.ram.J) + '<br /><br />');
+
+			out.push('PC = ' + printValue(PC.ram.PC) + '    ');
+			out.push('SP = ' + printValue(PC.ram.SP) + '<br />');
+			out.push('O  = ' + printValue(PC.ram.O) + '<br /><br />');
+			out.push('Stack: <br />');
+			if (PC.ram.SP > 0xFF00) {
+				for (i = PC.ram.SP; i < 0x10000; i++ ) {
+					out.push('[' + printValue(PC.getWord(i)) + ']<br />');
+				}
+			}
+			
+			$('#status').html(out.join(''));
+			$('#out').html(PC.screen2html());
+			
+			gotoRam();
+		},
+		printRam = function (offset) {
+			var i, ram = [];
+			for (i = 0; i < 80; i++) {
+				if (i%8 === 0) {
+					ram.push((i !== 0 ? '</span>\n' : '') + '<span id="ram-line-' + ((offset + i)/8) + '" class="ram-line">' + printValue(offset + i) + '  ');
+				}
+				
+				ram.push('<span id="ram-word-' + (offset + i) + '" class="ram-word">' + printValue(PC.getWord(offset + i)) + '</span>');
+			}
+			$('#ram').html(ram.join(' '));
+		},
+		gotoRam = function (where) {
+			if (where) {
+				where = PC.ram[where];
+			} else {
+				where = DCPU16._.parseInt($('#jumpto').val());
+			}
+			where = Math.min(Math.floor(where/8), 0xffb0/8),
+			
+			printRam(where*8);
+		},
+		highlightRam = function (where) {
+			$('.ram-word').css('background-color', 'white');
+			
+			if (where == 'none') {
+				return;
+			}
+			
+			if (where) {
+				where = PC.ram[where];
+			} else {
+				where = DCPU16._.parseInt($('#jumpto').val());
+			}
+			
+			$('#ram-word-' + where).css('background-color', 'pink');
+		},
+		downloadRom = function () {
+			var src = editor.getSession().getValue(),
+				bc = DCPU16.asm(src);
+			
+			window.open('data:application/octet-stream;base64,' + Base64.encode(bc), '_blank', 'height=300,width=400');
+		};
+	
+	window.onload = function () {
+		editor = ace.edit("src");
+		
+		$('#src > div.ace_gutter').click(function (e) {
+			var line = $(e.toElement),
+				lineNumber = line.html().match(/\d*$/);
+			
+			if (assembly.meta.line2addr[lineNumber]) {
+				line.html((PC.toggleBreakpoint(assembly.meta.line2addr[lineNumber]) ? '<span style="color: red; font-weight: bolder;">&bull;</span> ' : '') + lineNumber);
+			}
+		});
+		
+		load('example-breaking');
+		asm();
+	};
+</script>
+
+<!-- examples -->
+
 		<script type="text/dcpu-asm" id="example-1">
 		        ; Try some basic stuff
                       set A, 0x30              ; 7c01 0030
@@ -183,150 +339,6 @@ set PC, mod_hello
 :mod_hello_itr
     dat 0
 		</script>
-	</head>
-<body>
-<p>
-	<a href="javascript:void(0);" onclick="load('example-1');">Ref example</a>
-	<a href="javascript:void(0);" onclick="load('example-screen');">Screen buffer example</a>
-	<a href="javascript:void(0);" onclick="load('example-breaking');">Example that breaks in some emulators</a>
-</p>
-<p>
-	<div id="src" style="width: 800px; height: 400px; float: left;"></div>
-	<pre id="status" style="margin-left: 810px; width: 200px; height: 400px;"></pre>
-</p>
-<p>
-	<button onclick="asm();">Assemble</button>
-	<button onclick="step();">Step</button>
-	<button onclick="start();">Start</button>
-	<button onclick="stop();">Stop</button>
-	<button onclick="downloadRom();">Download rom</button>
-</p>
-
-<button onclick="gotoRam();">Go to</button> <input type="text" value="0" id="jumpto" />
-<button onclick="gotoRam('SP');" onmouseover="highlightRam('SP');" onmousemove="highlightRam('SP');" onmouseout="highlightRam('none');">SP</button>
-<button onclick="gotoRam('PC');" onmouseover="highlightRam('PC');" onmousemove="highlightRam('PC');" onmouseout="highlightRam('none');">PC</button><br />
-<pre id="ram" style="margin-top: 0; width: 400px; height: 170px; font-size: 14px; overflow-x: hidden; overflow-y: scrollbar; float: left;"></pre>
-<div id="out" style="margin-left: 410px; width: 400px; height: 170px; background-color: black; border: 1px solid black;"></div>
-
-<script type="text/javascript">
-	var PC, assembly, editor, marker,
-		Range = require("ace/range").Range,
 		
-		load = function (what) {
-			editor.getSession().setValue($('#' + what).html());
-		},
-		markLine = function (line) {
-			range = new Range(line-1, 0, line, 0);
-			editor.getSession().removeMarker(marker);
-			marker = editor.getSession().addMarker(range, "markline", "line");
-			editor.gotoLine(line);
-		},
-		asm = function () {
-			var src = editor.getSession().getValue(),
-				bc = DCPU16.asm(src);
-
-			assembly = bc;
-			
-			PC = new DCPU16.PC(bc);
-			PC.on('update', printStatus, this);
-			printStatus();
-		},
-		step = function () {
-			PC.step();
-		},
-		start = function () {
-			PC.start();
-		},
-		stop = function () {
-			PC.stop();
-		},
-		printValue = function (v) {
-			var r = v.toString(16),
-				i, l = 4;
-			
-			for (i = r.length; i < l; i++) {
-				r = '0' + r;
-			}
-				
-			return r;
-		},
-		printStatus = function () {
-			var out = [];
-			
-			markLine(assembly.meta.addr2line[PC.ram.PC]);
-			out.push('A  = ' + printValue(PC.ram.A) + '    ');
-			out.push('B  = ' + printValue(PC.ram.B) + '<br />');
-			out.push('C  = ' + printValue(PC.ram.C) + '    ');
-			out.push('X  = ' + printValue(PC.ram.X) + '<br />');
-			out.push('Y  = ' + printValue(PC.ram.Y) + '    ');
-			out.push('Z  = ' + printValue(PC.ram.Z) + '<br />');
-			out.push('I  = ' + printValue(PC.ram.I) + '    ');
-			out.push('J  = ' + printValue(PC.ram.J) + '<br /><br />');
-
-			out.push('PC = ' + printValue(PC.ram.PC) + '    ');
-			out.push('SP = ' + printValue(PC.ram.SP) + '<br />');
-			out.push('O  = ' + printValue(PC.ram.O) + '<br /><br />');
-			out.push('Stack: <br />');
-			if (PC.ram.SP > 0xFF00) {
-				for (i = PC.ram.SP; i < 0x10000; i++ ) {
-					out.push('[' + printValue(PC.getWord(i)) + ']<br />');
-				}
-			}
-			
-			$('#status').html(out.join(''));
-			$('#out').html(PC.screen2html());
-			
-			gotoRam();
-		},
-		printRam = function (offset) {
-			var i, ram = [];
-			for (i = 0; i < 80; i++) {
-				if (i%8 === 0) {
-					ram.push((i !== 0 ? '</span>\n' : '') + '<span id="ram-line-' + ((offset + i)/8) + '" class="ram-line">' + printValue(offset + i) + '  ');
-				}
-				
-				ram.push('<span id="ram-word-' + (offset + i) + '" class="ram-word">' + printValue(PC.getWord(offset + i)) + '</span>');
-			}
-			$('#ram').html(ram.join(' '));
-		},
-		gotoRam = function (where) {
-			if (where) {
-				where = PC.ram[where];
-			} else {
-				where = DCPU16._.parseInt($('#jumpto').val());
-			}
-			where = Math.min(Math.floor(where/8), 0xffb0/8),
-			
-			printRam(where*8);
-		},
-		highlightRam = function (where) {
-			$('.ram-word').css('background-color', 'white');
-			
-			if (where == 'none') {
-				console.log('highlight none');
-				return;
-			}
-			
-			if (where) {
-				where = PC.ram[where];
-			} else {
-				where = DCPU16._.parseInt($('#jumpto').val());
-			}
-			
-			$('#ram-word-' + where).css('background-color', 'pink');
-		},
-		downloadRom = function () {
-			var src = editor.getSession().getValue(),
-				bc = DCPU16.asm(src);
-			
-			window.open('data:application/octet-stream;base64,' + Base64.encode(bc), '_blank', 'height=300,width=400');
-		};
-	
-	window.onload = function () {
-		editor = ace.edit("src");
-		load('example-breaking');
-		asm();
-	};
-</script>
 </body>
 </html>
