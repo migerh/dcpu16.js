@@ -2,6 +2,17 @@
 	<head>
 		<script type="text/javascript" src="src/dcpu16.js"></script>
 		<script type="text/javascript" src="src/base64.js"></script>
+		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/ace/0.2.0/ace.js"></script>
+		
+		<style type="text/css">
+			.markline {
+				position: absolute;
+				background: pink;
+				z-index: 5;
+			}
+		</style>
+		
 		<script type="text/dcpu-asm" id="example-1">
 		        ; Try some basic stuff
                       set A, 0x30              ; 7c01 0030
@@ -180,12 +191,16 @@ set PC, mod_hello
 	<a href="javascript:void(0);" onclick="load('example-breaking');">Example that breaks in some emulators</a>
 </p>
 <p>
-	<textarea id="src" cols="150" rows="25" style="width: 800px; float: left;"></textarea>
+	<!--div id="indicator" style="position:absolute; width: 800px; height: 16px; background-color: pink; display: none;"></div-->
+	<!--textarea id="src" cols="150" rows="25" style="width: 800px; float: left; font-size: 12px;"></textarea-->
+	<div id="src" style="width: 800px; height: 400px; float: left;"></div>
 	<div id="status" style="margin-left: 810px; width: 200px; height: 400px; border: 1px solid black;"></div>
 </p>
 <p>
 	<button onclick="asm();">Assemble</button>
-	Run <input type="text" id="steps" value="10000" /><button onclick="step();">Steps</button>
+	<button onclick="step();">Step</button>
+	<button onclick="start();">Start</button>
+	<button onclick="stop();">Stop</button>
 	<button onclick="print();">Show screen buffer</button>
 	<button onclick="downloadRom();">Download rom</button>
 </p>
@@ -193,30 +208,57 @@ set PC, mod_hello
 <div id="out" style="width: 400px; border: 1px solid black;"></div>
 
 <script type="text/javascript">
-	var PC,
+	var PC, assembly, editor, marker,
+		Range = require("ace/range").Range,
 		load = function (what) {
-			document.getElementById('src').value = document.getElementById(what).innerHTML;
+			editor.getSession().setValue($('#' + what).html());
 		},
 		asm = function () {
-			var src = document.getElementById('src').value,
+			var src = editor.getSession().getValue(),
 				out = document.getElementById('out'),
 				bc = DCPU16.asm(src),
 				t;
+			
+			assembly = bc;
 				
 			PC = new DCPU16.PC(bc);
-			out.innerHTML = '';
+			/*out.innerHTML = '';
 			for (i = 0; i < bc.length; i++) {
 				t = bc[i].toString(16);
 				out.innerHTML += (t.length == 1 ? '0' : '') + t + (i % 2 == 1 ? ' ' : '');
-			}
+			}*/
+			
+			newpos = assembly.meta.entry;
+			range = new Range(newpos-1, 0, newpos, 0);
+			editor.getSession().removeMarker(marker);
+			marker = editor.getSession().addMarker(range, "markline", "line");
+			editor.gotoLine(newpos);
 		},
 		step = function () {
-			var i, steps = parseInt(document.getElementById('steps').value);
+			var indicator = $('#indicator'),
+				newpos = 0;
+
+			PC.step();
 			
-			for (i = 0; i < steps; i++) {
-				PC.step();
-			}
+			newpos = assembly.meta.addr2line[PC.ram.PC];
+			range = new Range(newpos-1, 0, newpos, 0);
+			editor.getSession().removeMarker(marker);
+			marker = editor.getSession().addMarker(range, "markline", "line");
+			editor.gotoLine(newpos);
+			indicator.scrollTop(Math.max(newpos - indicator.height(), 0));
+
+			indicator.css('display', 'block');
+			indicator.css('margin-top', newpos - indicator.scrollTop() + 'px');
+			
+			
 			printStatus();
+		},
+		start = function () {
+			PC.start();
+		},
+		stop = function () {
+			PC.stop();
+			step();
 		},
 		printValue = function (v) {
 			var r = v.toString(16);
@@ -260,9 +302,12 @@ set PC, mod_hello
 			out.innerHTML = b64;
 			window.open('data:application/octet-stream;base64,' + b64,'_blank','height=300,width=400');
 		};
-		
-	load('example-breaking');
-	asm();
+	
+	window.onload = function () {
+		editor = ace.edit("src");
+		load('example-breaking');
+		asm();
+	};
 </script>
 </body>
 </html>

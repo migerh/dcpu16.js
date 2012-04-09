@@ -176,7 +176,11 @@ var DCPU16 = (function () {
 			var lines = src.split('\n'),
 				line, bc = [], rom, w, pt = 0, inc, p,
 				i, j, k, token, resolve = [],
-				labels = {};
+				labels = {},
+				meta = {
+					line2addr: {},
+					addr2line: {}
+				};
 			
 			// read it line by line
 			for (i = 0; i < lines.length; i++) {
@@ -203,6 +207,12 @@ var DCPU16 = (function () {
 				if (token.op === '') {
 					continue;
 				}
+				
+				if (!meta.entry) {
+					meta.entry = i+1;
+				}
+				meta.line2addr[i+1] = pt;
+				meta.addr2line[pt] = i+1;
 				
 				if (token.op.toUpperCase() == 'DAT') {
 					// extract the strings first
@@ -329,6 +339,8 @@ var DCPU16 = (function () {
 				rom.push(bc[i] & 0xff);
 			}
 			
+			rom.meta = meta;
+			
 			return rom;
 		},
 		
@@ -346,6 +358,8 @@ var DCPU16 = (function () {
 			this.wordSize = _.wordSize;
 			this.maxWord = _.maxWord;
 			this.skipNext = false;
+			this.isRunning = false;
+			this.stepCount = 0;
 						
 			this.clear = function () {
 				var i;
@@ -363,6 +377,8 @@ var DCPU16 = (function () {
 						this.ram[i] = 0;
 					}
 				}
+				
+				this.stepCount = 0;
 			};
 			
 			this.load = function (rom, where) {
@@ -570,6 +586,7 @@ var DCPU16 = (function () {
 					
 				_.debug(op, a, b);
 				this.exec(op, a, b);
+				this.stepCount++;
 			};
 			
 			this.steps = function (steps) {
@@ -578,6 +595,24 @@ var DCPU16 = (function () {
 				for (i = 0; i < steps; i++) {
 					this.step();
 				}
+			};
+			
+			this.start = function () {
+				var _this = this,
+					timer = 30,
+					runner = function () {
+						if (_this.isRunning) {
+							_this.steps(100);
+							setTimeout(runner, timer);
+						}
+					};
+
+				this.isRunning = true;
+				setTimeout(runner, timer);
+			};
+			
+			this.stop = function () {
+				this.isRunning = false;
 			};
 			
 			this.screen2html =  function () {
@@ -605,11 +640,12 @@ var DCPU16 = (function () {
 						output += '</span><span style="' + lastStyle + '">';
 					}
 					
-					/*if (i % 32 === 0) {
+					//if (i % 32 === 0) {
+					if (val & 0x7f === 0xA) {
 						output += '<br />';
-					}*/
-					
-					output += String.fromCharCode(val & 0x7f);
+					} else {
+						output += String.fromCharCode(val & 0x7f);
+					}
 				}
 				
 				output += '</span>';
