@@ -191,8 +191,6 @@ set PC, mod_hello
 	<a href="javascript:void(0);" onclick="load('example-breaking');">Example that breaks in some emulators</a>
 </p>
 <p>
-	<!--div id="indicator" style="position:absolute; width: 800px; height: 16px; background-color: pink; display: none;"></div-->
-	<!--textarea id="src" cols="150" rows="25" style="width: 800px; float: left; font-size: 12px;"></textarea-->
 	<div id="src" style="width: 800px; height: 400px; float: left;"></div>
 	<div id="status" style="margin-left: 810px; width: 200px; height: 400px; border: 1px solid black;"></div>
 </p>
@@ -205,7 +203,8 @@ set PC, mod_hello
 	<button onclick="downloadRom();">Download rom</button>
 </p>
 
-<div id="out" style="width: 400px; border: 1px solid black;"></div>
+<textarea id="ram" style="width: 400px; height: 200px; border: 1px solid black;"></textarea>
+<div id="out" style="width: 800px; border: 1px solid black;"></div>
 
 <script type="text/javascript">
 	var PC, assembly, editor, marker,
@@ -233,6 +232,8 @@ set PC, mod_hello
 			editor.getSession().removeMarker(marker);
 			marker = editor.getSession().addMarker(range, "markline", "line");
 			editor.gotoLine(newpos);
+			
+			printStatus();
 		},
 		step = function () {
 			var indicator = $('#indicator'),
@@ -261,13 +262,18 @@ set PC, mod_hello
 			step();
 		},
 		printValue = function (v) {
-			var r = v.toString(16);
+			var r = v.toString(16),
+				i, l = 4;
+			
+			for (i = r.length; i < l; i++) {
+				r = '0' + r;
+			}
 				
 			return r;
 		},
 		printStatus = function () {
 			var status = document.getElementById('status'),
-				i;
+				i, ram = [];
 			
 			status.innerHTML = 'A = ' + printValue(PC.ram.A) + '<br />';
 			status.innerHTML += 'B = ' + printValue(PC.ram.B) + '<br />';
@@ -287,6 +293,16 @@ set PC, mod_hello
 					status.innerHTML += '[' + printValue(PC.getWord(i)) + ']<br />';
 				}
 			}
+			
+			ram.push('0000  ');
+			for (i = 0; i < 0x10000; i++) {
+				ram.push(printValue(PC.getWord(i)));
+				
+				if ((i+1)%8 === 0 && i !== 0xFFFF) {
+					ram.push('\n' + printValue(i+1) + '  ');
+				}
+			}
+			$('#ram').val(ram.join(' '));
 		},
 		print = function () {
 			var out = document.getElementById('out');
