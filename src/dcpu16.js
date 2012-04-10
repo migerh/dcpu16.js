@@ -68,6 +68,11 @@ var DCPU16 = (function () {
 		},
 		
 		printHex: function (v, w) {
+			// TODO FIXME
+			if (typeof v == 'undefined') {
+				return '';
+			}
+		
 			var r = v.toString(16), i;
 			
 			w = _.def(w, 0);
@@ -352,9 +357,11 @@ var DCPU16 = (function () {
 				rom.push(bc[i] & 0xff);
 			}
 			
-			rom.meta = meta;
-			
-			return rom;
+			return {
+				src: src,
+				bc: rom,
+				meta: meta
+			};
 		},
 		
 		dasm: function (rom) {
@@ -363,7 +370,8 @@ var DCPU16 = (function () {
 				labels = {}, romlen, isPC,
 				meta = {
 					addr2line: {},
-					line2addr: {}
+					line2addr: {},
+					entry: 0
 				};
 			
 			while (i < rom.length) {
@@ -489,7 +497,11 @@ var DCPU16 = (function () {
 			
 			src = src.join('');
 
-			return src;
+			return {
+				src: src,
+				bc: rom,
+				meta: meta
+			};
 		},
 		
 		// emulator

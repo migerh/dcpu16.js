@@ -10,14 +10,16 @@ fairly easy to implement.
 Usage
 =====
 
-	var bytecode = DCPU16.asm(src);
-Assembles the source code into a memory image (an array of bytes). There's also some meta
-information returned in the *meta* property containing the address to line conversion object
-*addr2line*, the line to address conversion object *line2addr* and the entry point in *entry*.
+	var result = DCPU16.asm(src);
+Assembles the source code into a memory image (an array of bytes) which is accessible through the
+*bc* attribute. There's also some meta information returned in the *meta* property containing the
+address to line conversion object *addr2line*, the line to address conversion object *line2addr*
+and the entry point in *entry*.
 
-	var line = bytecode.meta.addr2line[0x1F];
-	var addr = bytecode.meta.line2addr[2];
-	var entryline = bytecode.meta.entry;  // equals bytecode.meta.addr2line[0]
+	var bc = result.bc;
+	var line = result.meta.addr2line[0x1F];
+	var addr = result.meta.line2addr[2];
+	var entryline = result.meta.entry;  // equals result.meta.addr2line[0]
 
 Please note that lines without a corresponding address (and vice versa) are undefined.
 

@@ -14,11 +14,12 @@
 		</style>
 	</head>
 <body>
-<p>
+<!--p>
 	<a href="javascript:void(0);" onclick="load('example-1');">Ref example</a>
 	<a href="javascript:void(0);" onclick="load('example-screen');">Screen buffer example</a>
 	<a href="javascript:void(0);" onclick="load('example-breaking');">Example that breaks in some emulators</a>
-</p>
+</p-->
+<span style="font-size: 11px;">Click the line numbers to toggle breakpoints. Drop asm source files or rom files over the editor to load them. Click &quot;Assemble&quot; after you made changes to the source.</span>
 <p>
 	<div id="src" style="width: 800px; height: 400px; float: left;"></div>
 	<pre id="status" style="margin-left: 810px; width: 200px; height: 400px;"></pre>
@@ -50,15 +51,18 @@
 			marker = editor.getSession().addMarker(range, "markline", "line");
 			editor.gotoLine(line);
 		},
+		newPC = function () {
+			PC = new DCPU16.PC(assembly.bc);
+			PC.on('update', printStatus, this);
+			printStatus();
+		},
 		asm = function () {
 			var src = editor.getSession().getValue(),
 				bc = DCPU16.asm(src);
 
 			assembly = bc;
-			
-			PC = new DCPU16.PC(bc);
-			PC.on('update', printStatus, this);
-			printStatus();
+
+			newPC();			
 		},
 		step = function () {
 			PC.step();
@@ -144,7 +148,7 @@
 			$('#ram-word-' + where).css('background-color', 'pink');
 		},
 		downloadRom = function () {
-			window.open('data:application/octet-stream;base64,' + Base64.encode(assembly), '_blank', 'height=300,width=400');
+			window.open('data:application/octet-stream;base64,' + Base64.encode(assembly.bc), '_blank', 'height=300,width=400');
 		};
 	
 	window.onload = function () {
@@ -169,6 +173,61 @@
 				}
 			});
 		});
+		
+		document.addEventListener('dragover', function (e) {
+			e.stopPropagation();
+			e.preventDefault();
+			
+			e.dataTransfer.dropEffect = 'none';
+		}, false);
+		
+		document.getElementById('src').addEventListener('dragover', function (e) {
+			e.stopPropagation();
+			e.preventDefault();
+			
+			e.dataTransfer.dropEffect = 'copy';
+		}, false);
+		
+        document.getElementById('src').addEventListener('drop', function (e) {
+			var files = e.dataTransfer.files, f,
+				firstTry,
+				reader = new FileReader();
+
+			e.stopPropagation();
+			e.preventDefault();
+
+			if (files.length > 0) {
+                f = files[0];
+                
+				reader.onloadend = function (result) {
+					var i, rom = [];
+					
+					if (firstTry) {
+						if (firstTry == result.target.result) {
+						console.log('found src');
+							editor.getSession().setValue(firstTry);
+							asm();
+						} else {
+						console.log('found rom');
+							for (i = 0; i < firstTry.length; i++) {
+								rom.push(firstTry.charCodeAt(i));
+							}
+							assembly = DCPU16.dasm(rom);
+							editor.getSession().setValue(assembly.src);
+							newPC();
+						}
+					} else {
+						firstTry = result.target.result;
+						reader.readAsText(f);
+					}
+				};
+				
+				reader.onerror = function (result) {
+					alert('Error while reading file.');
+				};
+				reader.readAsBinaryString(f);
+			}
+        }, false);
 		
 		load('example-screen');
 		asm();
