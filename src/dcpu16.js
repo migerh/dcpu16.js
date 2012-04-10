@@ -30,7 +30,7 @@ var DCPU16 = (function () {
 		opcodes_rev: ['', 'SET', 'ADD', 'SUB', 'MUL', 'DIV', 'MOD', 'SHL', 'SHR',
 					'AND', 'BOR', 'XOR', 'IFE', 'IFN', 'IFG', 'IFB'],
 		
-		nbopcodes_rev: ['JSR'],
+		nbopcodes_rev: ['UNDEF', 'JSR'],
 		
 		// registers
 		registers: {A: 0x0, B: 0x1, C: 0x2, X: 0x3, Y: 0x4, Z: 0x5, I: 0x6, J: 0x7},
@@ -38,14 +38,7 @@ var DCPU16 = (function () {
 		registers_rev: ['A', 'B', 'C', 'X', 'Y', 'Z', 'I', 'J'],
 		
 		// special stack ops and pointers/flags
-		values: {
-			POP: 0x18,
-			PEEK: 0x19,
-			PUSH: 0x1a,
-			SP: 0x1b,
-			PC: 0x1c,
-			O: 0x1d
-		},
+		values: {POP: 0x18, PEEK: 0x19, PUSH: 0x1a, SP: 0x1b, PC: 0x1c, O: 0x1d},
 		
 		values_rev: [],
 		
@@ -72,6 +65,18 @@ var DCPU16 = (function () {
 		
 		tab2ws: function (str) {
 			return str.replace(/\t/, " ");
+		},
+		
+		printHex: function (v, w) {
+			var r = v.toString(16), i;
+			
+			w = _.def(w, 0);
+			
+			for (i = r.length; i < w; i++) {
+				r = '0' + r;
+			}
+			
+			return '0x' + r;
 		},
 		
 		def: function (val, def) {
@@ -169,6 +174,10 @@ var DCPU16 = (function () {
 	_.values_rev[0x1b] = 'SP';
 	_.values_rev[0x1c] = 'PC';
 	_.values_rev[0x1d] = 'O';
+	_.values_rev[0x18] = 'POP';
+	_.values_rev[0x19] = 'PEEK';
+	_.values_rev[0x1a] = 'PUSH';
+
 
 	return {
 		// some of the helper methods might be useful outside the assembler and emulator scope
@@ -349,10 +358,137 @@ var DCPU16 = (function () {
 		},
 		
 		dasm: function (rom) {
-			var src;
+			var src = [], currentline, i = 0, j = 0, bc = [],
+				op, values = [0, 0], startval = 0, w, par, line = 1,
+				labels = {}, romlen, isPC,
+				meta = {
+					addr2line: {},
+					line2addr: {}
+				};
 			
+			while (i < rom.length) {
+				bc.push(((rom[i++] & 0xff) << 8) | ((rom[i++] || 0) & 0xff));
+			}
 			
+			romlen = bc.length;
+			i = 0;
+			while (i < romlen) {
+				meta.addr2line[i] = line;
+				meta.line2addr[line] = i;
+
+				w = bc[i++];
+				op = w & 0xf;
+				values[0] = (w & 0x3f0) >> 4;
+				values[1] = (w & 0xfc00) >> 10;
+				
+				isPC = false;
+				
+				if (op > 0) {
+					currentline = {
+						op: _.opcodes_rev[op]
+					};
+					startval = 0;
+				} else if (values[0] > 0 && values[0] <= 1) {
+					currentline = {
+						op: _.nbopcodes_rev[values[0]]
+					};
+					startval = 1;
+				} else {
+					src.push({
+						op: 'dat',
+						params: [{
+							str: _.printHex(w)
+						}],
+						line: line++
+					});
+					continue;
+				}
+				
+				currentline.params = [];
+				for (j = startval; j < 2; j++) {
+					w = values[j];
+					if (w >= 0 && w < 0x8) {
+						par = {
+							str: _.registers_rev[w]
+						};
+					} else if (w >= 0x8 && w < 0x10) {
+						par = {
+							str: '[' + _.registers_rev[w-0x8] + ']'
+						};
+					} else if (w >= 0x10 && w < 0x18) {
+						par = {
+							str: '[' + _.printHex(bc[i]) + '+' + _.registers_rev[w-0x10] + ']',
+							labelTo: bc[i++],
+							register: _.registers_rev[w-0x10]
+						};
+					} else if (w >= 0x18 && w < 0x1e) {
+						par = {
+							str: _.values_rev[w]
+						};
+					} else if (w == 0x1e) {
+						par = {
+							str: '[' + _.printHex(bc[i]) + ']',
+							labelTo: bc[i++]
+						};
+					} else if (w == 0x1f) {
+						par = {
+							str: _.printHex(bc[i++])
+						};
+						
+						if (isPC) {
+							par.labelTo = bc[i-1];
+							par.setPC = true;
+						}
+					} else {
+						par = {
+							str: _.printHex(w-0x20)
+						};
+						
+						if (isPC) {
+							par.labelTo = w-0x20;
+							par.setPC = true;
+						}
+					}
+					
+					if (currentline.op == 'SET' && par.str == 'PC') {
+						isPC = true;
+					}
+					currentline.params.push(par);
+				}
+				
+				currentline.line = line++;
+				src.push(currentline);
+			}
+
+			for (i = 0; i < src.length; i++) {
+				w = src[i];
+				
+				for (j = 0; j < w.params.length; j++) {
+					if (w.params[j].labelTo && meta.addr2line[w.params[j].labelTo]) {
+						line = meta.addr2line[w.params[j].labelTo];
+						src[line-1].label = 'line' + (line+1);
+						
+						if (w.params[j].register) {
+							w.params[j].str = '[line' + (line+1) + '+' + w.params[j].register + ']';
+						} else if (w.params[j].setPC) {
+							w.params[j].str = 'line' + (line+1);
+						} else {
+							w.params[j].str = '[line' + (line+1) + ']';
+						}
+					}
+					
+					// finish the values
+					w.params[j] = w.params[j].str;
+				}
+			}
 			
+			for (i = 0; i < src.length; i++) {
+				w = src[i];
+				src[i] = (w.label ? ':' + w.label  + '  ' : '    ') + w.op + ' ' + w.params.join(', ') + '\n';
+			}
+			
+			src = src.join('');
+
 			return src;
 		},
 		
