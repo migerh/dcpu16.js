@@ -144,22 +144,30 @@
 			$('#ram-word-' + where).css('background-color', 'pink');
 		},
 		downloadRom = function () {
-			var src = editor.getSession().getValue(),
-				bc = DCPU16.asm(src);
-			
-			window.open('data:application/octet-stream;base64,' + Base64.encode(bc), '_blank', 'height=300,width=400');
+			window.open('data:application/octet-stream;base64,' + Base64.encode(assembly), '_blank', 'height=300,width=400');
 		};
 	
 	window.onload = function () {
 		editor = ace.edit("src");
 		
-		$('#src > div.ace_gutter').click(function (e) {
+		$('#src > div.ace_gutter').on('click', function (e) {
 			var line = $(e.toElement),
 				lineNumber = line.html().match(/\d*$/);
 			
 			if (assembly.meta.line2addr[lineNumber]) {
 				line.html((PC.toggleBreakpoint(assembly.meta.line2addr[lineNumber]) ? '<span style="color: red; font-weight: bolder;">&bull;</span> ' : '') + lineNumber);
 			}
+		});
+		
+		$('#src > .ace_sb').on('scroll', function (e) {
+			$('#src div.ace_gutter-cell').each(function (i, line) {
+				var lineNumber = $(line).html().match(/\d*$/),
+					lineAddr = assembly.meta.line2addr[lineNumber];
+					
+				if (PC.breakpoints[lineAddr]) {
+					$(line).html('<span style="color: red; font-weight: bolder;">&bull;</span> ' + lineNumber);
+				}
+			});
 		});
 		
 		load('example-breaking');
