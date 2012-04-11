@@ -1,0 +1,182 @@
+/*
+ * DCPU16 ASM Parser
+ */
+
+{
+  var line = 0;
+}
+
+start
+  = program:statements
+    {
+      return program;
+    }
+
+
+statements
+  = stmt:stmt nl* statements:statements
+    { return [stmt].concat(statements); }
+
+  / stmt:stmt nl*
+    { return [stmt]; }
+
+  / nl*
+    { return []; }
+
+
+stmt
+  = ws ":" label:label ws cmd:cmd ws
+    {
+      return {
+        line: line,
+        label: label,
+        cmd: cmd
+      };
+    }
+
+  / ws ":" label:label ws
+    {
+      return {
+        line: line,
+        label: label
+      };
+    }
+
+  / ws cmd:cmd ws
+    {
+      return {
+        line: line,
+        cmd: cmd
+      };
+    }
+
+
+label "label"
+  = label:([a-zA-Z0-9_\.]+)
+    {
+      return label.join('');
+    }
+
+
+cmd
+  = ws op:op ws param1:param ws "," ws param2:param
+    {
+      return {
+        op: op,
+        params: [param1, param2]
+      };
+    }
+
+  / ws op:op ws param:param
+    {
+      return {
+        op: op,
+        params: [param]
+      };
+    }
+
+
+op "operator"
+  = op:([a-zA-Z][a-zA-Z][a-zA-Z]) { return op.join('').toUpperCase(); }
+
+
+param "parameter"
+  = "[" ws vn:number ws "+" ws vr:register ws "]"
+    {
+      return {
+        register: vr,
+        nextWord: vn
+      };
+    }
+  / "[" ws vr:register ws "+" ws vn:number ws "]"
+    {
+      return {
+        register: vr,
+        nextWord: vn
+      };
+    }
+  / "[" ws v:paramaddress ws "]"
+    {
+      v.hasBrackets = true;
+      return v;
+    }
+  / v:paramvalue
+    {
+      return v;
+    }
+
+paramaddress
+  = v:register
+    {
+      return {
+        value: v,
+        isRegister: true
+      };
+    }
+  / v:number
+    {
+      return {
+        value: v,
+        isNumber: true
+      };
+    }
+  / v:label
+    {
+      return {
+        value: v,
+        isLabel: true
+      };
+    }
+
+paramvalue
+  = v:paramconst
+    {
+      return {
+        value: v,
+        isSpecial: true
+      };
+    }
+  / v:paramaddress
+    {
+      return v;
+    }
+
+paramconst
+  = [pP][uU][sS][hH]
+    { return 0x1a; }
+  / [pP][oO][pP]
+    { return 0x18; }
+  / [pP][eE][eE][kK]
+    { return 0x19; }
+  / [sS][pP]
+    { return 0x1b; }
+  / [pP][cC]
+    { return 0x1c; }
+  / [oO]
+    { return 0x1d; }
+
+
+register "register"
+  = v:[a-cx-zijoA-CX-ZIJ]
+    { return v.toUpperCase(); }
+
+number "number"
+  /* oct */
+  = v:("0"[0-9]+)
+    { return parseInt(v[0] + v[1].join(''), 8); }
+  /* hex */
+  / v:("0x"[0-9a-fA-F]+)
+    { return parseInt(v[0] + v[1].join(''), 16); }
+  /* dec */
+  / v:[0-9]+
+    { return parseInt(v.join(''), 10); }
+
+
+ws "whitespace"
+  = [" ""\t"]*
+
+
+nl "newline"
+  = "\n" { line++; }
+  / "\r\n" { line++; }
+  / "\r" { line++; }
