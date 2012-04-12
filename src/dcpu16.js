@@ -56,17 +56,6 @@ var DCPU16 = (function () {
 			return r;
 		},
 		
-		trim: function (str) {
-			str = str.replace(/^\s+/, "");
-			str = str.replace(/\s+$/, "");
-
-			return str;
-		},
-		
-		tab2ws: function (str) {
-			return str.replace(/\t/, " ");
-		},
-		
 		printHex: function (v, w) {
 			// TODO FIXME
 			if (typeof v == 'undefined') {
@@ -83,95 +72,12 @@ var DCPU16 = (function () {
 			
 			return '0x' + r;
 		},
-		
 		def: function (val, def) {
 			if (typeof val == 'undefined' || typeof val == 'null') {
 				return def;
 			}
 			
 			return val;
-		},
-		
-		next: function (str) {
-			return _.trim(str).split(' ')[0];
-		},
-
-		tokenize: function (line) {
-			var label, op = 'NOP', params = [];
-
-			if (line[0] == ':') {
-				label = _.next(line.slice(1));
-				line = _.trim(line.slice(label.length + 1));
-			}
-			
-			op = _.next(line);
-			line = _.trim(line.slice(op.length));
-			
-			params = line.split(',');
-			
-			return {
-				label: label,
-				op: op,
-				params: params
-			};
-		},
-		
-		get: function (param) {
-			var t, ob = '[(', cb = '])', paramUp;
-			
-			if (!param && !param.slice) {
-				return [0x0];
-			}
-			
-			var brackets = ob.indexOf(param.slice(0, 1)) > -1 && cb.indexOf(param.slice(-1)) > -1;
-			
-			if (brackets) {
-				param = _.trim(param.slice(1, -1));
-			}
-			
-			paramUp = param.toUpperCase();
-
-			if (paramUp in _.registers) {
-				// register
-				_.debug('found register', paramUp);
-				t = _.registers[paramUp];
-				return brackets ? [t + 0x8] : [t];
-			} else if (paramUp in _.values) {
-				// "special" values POP, PEEK, PUSH, SP, PC, and O
-				return [_.values[paramUp]];
-			} else if (param.match(/^0x[0-9a-fA-F]{1,4}$/) || param.match(/^[0-9]{1,5}$/)) {
-				// next word is value
-				t = _.parseInt(param) & _.maxWord;
-				_.debug('found value', t.toString(16));
-
-				if (!brackets && t >= 0x0 && t < 0x20) {
-					return [0x20 + t];
-				} else {
-					return brackets ? [0x1e, t] : [0x1f, t];
-				}
-			} else if (brackets && param.indexOf('+') > -1) {
-				// this [nextword+register] thing
-				t = param.split('+');
-				
-				if (!_.registers[t[1]]) {
-					// _error!
-				}
-				
-				// jshint is complaining about an empty block here
-				// i guess it's the {x,y} things inside the regex
-				if (t[0].match(/^0x[0-9a-fA-F]{1,4}$/) || t[0].match(/^[0-9]{1,5}$/)) {
-					return [0x10 + _.registers[_.trim(t[1]).toUpperCase()], _.parseInt(t[0])];
-				} else {
-					return [0x10 + _.registers[_.trim(t[1]).toUpperCase()], t[0]];
-				}
-			} else {
-				// label
-				_.debug('rec label');
-				param.isLabel = true;
-				return brackets ? [0x1e, param] : [0x1f, param];
-			}
-			
-			return [0x0];
 		},
 		resolveEscapeSequences: function (str) {
 			return str.replace(/\\\\/g, '\\')
@@ -209,11 +115,10 @@ var DCPU16 = (function () {
 		parseInt: _.parseInt,
 		// assembler
 		asm: function (src) {
-			var tokens, node,
+			var tokens,
 				bc = [], rom = [],
-				labels = {}, resolve = [],
-				i, j, k,
-				line, pc = 0, op, w, oppc,
+				labels = {}, resolve = [], macros = {},
+				pc = 0, op, oppc, i,
 				
 				meta = {
 					addr2line: {},
@@ -330,102 +235,159 @@ var DCPU16 = (function () {
 					}
 
 					op = op | ((value & 0x3f) << (4 + storage*6));
-				}; /* handleParameter */
+				},
+				replaceValueStrings = function (tokens, parameter, value) {
+					var i, j, k, w;
+					
+					// TODO find stuff in expressions
+					for (i = 0; i < tokens.length; i++) {
+						if (tokens[i].cmd) {
+							w = tokens[i].cmd;
+						} else {
+							w = tokens[i];
+						}
+						
+						if (w.params) {
+							for (j = 0; j < w.params.length; j++) {
+								if (w.params[j].isExpression) {
+									// currently only simple add expressions with 2 summands
+									for (k = 0; k < 2; k++) {
+										if (w.params[j].children[k].value === parameter) {
+											w.params[j].children[k].value = value;
+										}
+									}
+								}
+								
+								if (w.params[j].value === parameter) {
+									w.params[j].value = value;
+								}
+							}
+						}
+					}
+					
+					return tokens;
+				},
+				parseTokens = function (tokens, allowMacros) {
+					var i, j, k, w,
+						line, node, macro;
+
+					for (i = 0; i < tokens.length; i++) {
+						node = tokens[i];
+	
+						switch (node.action) {
+						case 'nop':
+							// e.g. a line completely consisting of a comment
+							continue;
+							break;
+						case 'op':
+							// standard op/label stuff
+							if (node.label) {
+								labels[node.label] = pc;
+							}
+							
+							if (!node.line) {
+								throw new ParserError('Undefined line');
+							}
+							
+							line = node.line;
+							meta.addr2line[pc] = line;
+							meta.line2addr[line] = pc;
+							
+							if (!node.cmd) {
+								// there is no command, continue with the next line
+								continue;
+							}
+							
+							// everything from node is done, continue with node.cmd
+							node = node.cmd;
+							
+							// handle the special op DAT
+							if (node.op === 'DAT') {
+								for (j = 0; j < node.params.length; j++) {
+									w = node.params[j];
+	
+									if (w.isNumber) {
+										push(w.value);
+									} else if (w.isStringLiteral) {
+										w = _.resolveEscapeSequences(w.value);
+										for (k = 0; k < w.length; k++) {
+											push(w.charCodeAt(k));
+										}
+									} else {
+										throw new ParserError('Unknown DAT value "' + JSON.stringify(w) + '"', line);
+									}
+								}
+								continue;
+							}
+							
+							// handle the rest of the ops
+							op = _.opcodes[node.op];
+							if (typeof op === 'undefined') {
+								throw new ParserError('Unknown operator "' + '"', line);
+							};
+	
+							// reserve space in mem for the opcode and values
+							oppc = pc;
+							push(0);
+							
+							// inc and op are going to be changed inside handleParameter
+							if (op > 0 && op <= 0xf) {
+								handleParameter(node.params[0], 0);
+								handleParameter(node.params[1], 1);
+							} else {
+								handleParameter(node.params[0], 1);
+							}
+							
+							bc[oppc] = op;
+							
+							break;
+						case 'macro':
+							if (allowMacros) {
+								macros[node.name] = node;
+							} else {
+								throw new ParserError('A macro cannot be defined here (Nested macro definition?)', line);
+							}
+							break;
+						case 'macrocall':
+							macro = macros[node.name];
+							
+							if (typeof macro === 'undefined') {
+								throw new ParserError('Unknown macro "' + node.name + '"', line+1);
+							}
+							
+							// TODO make this compatible to browsers without native JSON
+							w = JSON.parse(JSON.stringify(macro.src));
+							
+							for (j = 0; j < macro.params.length; j++) {
+								if (!node.params[j] || !node.params[j].value) {
+									throw new ParseError('Not enough parameters given', line);
+								}
+								
+								console.log(JSON.stringify(w));
+								w = replaceValueStrings(w, macro.params[j].value, node.params[j].value);
+								console.log(JSON.stringify(w));
+							}
+							
+							parseTokens(w, false);
+							break;
+						default:
+							throw new ParserError('Unknown or undefined action "' + op.action + '"', line);
+						}
+					}
+				};
 			
 			src = _.preprocess(src);
 			
 			try {
 				tokens = DCPU16.Parser.parse(src);
-				
-				for (i = 0; i < tokens.length; i++) {
-					node = tokens[i];
-
-					switch (node.action) {
-					case 'nop':
-						// e.g. a line completely consisting of a comment
-						continue;
-						break;
-					case 'op':
-						// standard op/label stuff
-						if (node.label) {
-							labels[node.label] = pc;
-						}
-						
-						if (!node.line) {
-							throw new ParserError('Undefined line');
-						}
-						
-						line = node.line;
-						meta.addr2line[pc] = line;
-						meta.line2addr[line] = pc;
-						
-						if (!node.cmd) {
-							// there is no command, continue with the next line
-							continue;
-						}
-						
-						// everything from node is done, continue with node.cmd
-						node = node.cmd;
-						
-						// handle the special op DAT
-						if (node.op === 'DAT') {
-							for (j = 0; j < node.params.length; j++) {
-								w = node.params[j];
-
-								if (w.isNumber) {
-									push(w.value);
-								} else if (w.isStringLiteral) {
-									w = _.resolveEscapeSequences(w.value);
-									for (k = 0; k < w.length; k++) {
-										push(w.charCodeAt(k));
-									}
-								} else {
-									throw new ParserError('Unknown DAT value "' + JSON.stringify(w) + '"', line);
-								}
-							}
-							continue;
-						}
-						
-						// handle the rest of the ops
-						op = _.opcodes[node.op];
-						if (typeof op === 'undefined') {
-							throw new ParserError('Unknown operator "' + '"', line);
-						};
-
-						// reserve space in mem for the opcode and values
-						oppc = pc;
-						push(0);
-						
-						// inc and op are going to be changed inside handleParameter
-						if (op > 0 && op <= 0xf) {
-							handleParameter(node.params[0], 0);
-							handleParameter(node.params[1], 1);
-						} else {
-							handleParameter(node.params[0], 1);
-						}
-						
-						bc[oppc] = op;
-						
-						break;
-					case 'macro':
-						throw new ParserError('Macros are not supported yet');
-						break;
-					case 'macrocall':
-						throw new ParserError('Macros are not supported yet');
-						break;
-					default:
-						throw new ParserError('Unknown or undefined action "' + op.action + '"', line);
-					}
-				}
+				parseTokens(tokens, true);
 			} catch (e) {
 				throw new ParserError(e.message, e.line);
 			}
 			
 			for (i = 0; i < resolve.length; i++) {
-				w = resolve[i];
-				bc[w.pc] = labels[w.label];
+				bc[resolve[i].pc] = labels[resolve[i].label];
 			}
-
 			
 			for (i = 0; i < bc.length; i++) {
 				rom.push((bc[i] >> 8) & 0xff);

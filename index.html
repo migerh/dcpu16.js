@@ -70,6 +70,7 @@
 				assembly = DCPU16.asm(src);
 				newPC();
 			} catch (e) {
+				console.log(e, e.line, new Error().stack);
 				editor.getSession().removeMarker(marker);
 				assembly = null;
 				PC.clear();
