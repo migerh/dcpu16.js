@@ -4,7 +4,8 @@ var DCPU16 = (function () {
 	"use strict";
 
 	// private stuff
-	var _ = {
+	var pub,
+		_ = {
 		maxWord: 0xffff,
 		ramSize: 0x10000,
 		wordSize: 2,
@@ -84,7 +85,7 @@ var DCPU16 = (function () {
 						.replace(/\\n/g, '\n')
 						.replace(/\\r/g, '\r')
 						.replace(/\\t/g, '\t')
-						.replace(/\\'/g, '\'')
+						//.replace(/\\'/g, '\'')
 						.replace(/\\"/g, '"')
 						.replace(/\\0/g, '\0');
 		},
@@ -110,7 +111,7 @@ var DCPU16 = (function () {
 	_.values_rev[0x1a] = 'PUSH';
 
 
-	return {
+	pub = {
 		// some of the helper methods might be useful outside the assembler and emulator scope
 		parseInt: _.parseInt,
 		// assembler
@@ -239,7 +240,6 @@ var DCPU16 = (function () {
 				replaceValueStrings = function (tokens, parameter, value) {
 					var i, j, k, w;
 					
-					// TODO find stuff in expressions
 					for (i = 0; i < tokens.length; i++) {
 						if (tokens[i].cmd) {
 							w = tokens[i].cmd;
@@ -733,6 +733,7 @@ var DCPU16 = (function () {
 				case 0x5: // DIV
 					if (valB === 0) {
 						tmp = 0;
+						this.ram.O = 0;
 					} else {
 						tmp = Math.floor(this.getWord(addrA) / valB);
 						this.ram.O = (Math.floor(this.getWord(addrA) << 16) / valB) & this.maxWord;
@@ -920,6 +921,14 @@ var DCPU16 = (function () {
 			}
 		}
 	};
+	
+	// we are running test cases
+	if (typeof TestCase !== 'undefined') {
+		pub._ = _;
+		pub._.ParserError = ParserError;
+	}
+	
+	return pub;
 })();
 
 if (typeof module != 'undefined') {
