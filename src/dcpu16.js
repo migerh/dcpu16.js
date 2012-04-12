@@ -363,9 +363,7 @@ var DCPU16 = (function () {
 									throw new ParseError('Not enough parameters given', line);
 								}
 								
-								console.log(JSON.stringify(w));
 								w = replaceValueStrings(w, macro.params[j].value, node.params[j].value);
-								console.log(JSON.stringify(w));
 							}
 							
 							parseTokens(w, false);

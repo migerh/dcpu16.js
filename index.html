@@ -70,7 +70,6 @@
 				assembly = DCPU16.asm(src);
 				newPC();
 			} catch (e) {
-				console.log(e, e.line, new Error().stack);
 				editor.getSession().removeMarker(marker);
 				assembly = null;
 				PC.clear();
@@ -225,11 +224,9 @@
 					
 					if (firstTry) {
 						if (firstTry == result.target.result) {
-						console.log('found src');
 							editor.getSession().setValue(firstTry);
 							asm();
 						} else {
-						console.log('found rom');
 							for (i = 0; i < firstTry.length; i++) {
 								rom.push(firstTry.charCodeAt(i));
 							}
