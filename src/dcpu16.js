@@ -172,8 +172,28 @@ var DCPU16 = (function () {
 			}
 			
 			return [0x0];
+		},
+		resolveEscapeSequences: function (str) {
+			return str.replace(/\\\\/g, '\\')
+						.replace(/\\n/g, '\n')
+						.replace(/\\r/g, '\r')
+						.replace(/\\t/g, '\t')
+						.replace(/\\'/g, '\'')
+						.replace(/\\"/g, '"')
+						.replace(/\\0/g, '\0');
+		},
+		preprocess: function (src) {
+			// eliminate tabs
+			return src.replace(/\t/g, "");
 		}
+	},
+	
+	ParserError = function (msg, line) {
+		this.name = 'ParserError';
+		this.message = msg;
+		this.line = line;
 	};
+	ParserError.prototype = Error.prototype;
 
 	// very hacky
 	_.values_rev[0x1b] = 'SP';
@@ -186,184 +206,238 @@ var DCPU16 = (function () {
 
 	return {
 		// some of the helper methods might be useful outside the assembler and emulator scope
-		_: {
-			parseInt: _.parseInt
-		},
+		parseInt: _.parseInt,
 		// assembler
 		asm: function (src) {
-			var lines = src.split('\n'),
-				line, bc = [], rom, w, pt = 0, inc, p,
-				i, j, k, token, resolve = [],
-				labels = {},
+			var tokens, node,
+				bc = [], rom = [],
+				labels = {}, resolve = [],
+				i, j, k,
+				line, pc = 0, op, w, oppc,
+				
 				meta = {
+					addr2line: {},
 					line2addr: {},
-					addr2line: {}
-				};
-			
-			// read it line by line
-			for (i = 0; i < lines.length; i++) {
-				// get rid of the comment and remove alle whitespaces
-				// and convert remaining tabs to whitespaces
-				line = _.tab2ws(_.trim(lines[i].split(';')[0]));
-				
-				_.debug(line);
-				if (line === '') {
-					continue;
-				}
-				
-				inc = 1;
-				token = _.tokenize(line);
-				
-				// set the current execution pointer
-				// this assumes that the rom is always
-				// loaded at 0x0000
-				if (token.label) {
-					labels[token.label] = pt;
-				}
-				
-				// apparently it was just a label
-				if (token.op === '') {
-					continue;
-				}
-				
-				if (!meta.entry) {
-					meta.entry = i+1;
-				}
-				meta.line2addr[i+1] = pt;
-				meta.addr2line[pt] = i+1;
-				
-				if (token.op.toUpperCase() == 'DAT') {
-					// extract the strings first
-					w = token.params.join(',');
-					rom = [];
+					entry: 0
+				},
 
-					// escape escape sequences
-					w = w.replace(/\\"/g, '", 0x22, "')
-						.replace(/\\'/g, '", 0x27, "')
-						.replace(/\\n/g, '", 0xA, "')
-						.replace(/\\r/g, '", 0xD, "')
-						.replace(/\\t/g, '", 0x9, "')
-						.replace(/\\\\/g, '", 0x5C, "')
-						.replace(/\\0/g, '", 0x0, "');
+				push = function (v) {
+					bc.push(v & _.maxWord);
+					pc++;
+				},
+				pushLabel = function (label, storage) {
+					resolve.push({
+						label: label,
+						oppc: oppc,
+						pc: pc,
+						par: storage
+					});
+					bc.push(0);
+					pc++;
+				},
+				handleParameter = function (data, storage) {
+					// this function changes the local variables op and inc
+					var value,
+						addr, reg;
 					
-					w = w.split('"');
-					
-					for (j = 1; j < w.length; j = j + 2) {
-						rom.push(w[j]);
-						// replace the string with 'str'
-						w.splice(j, 1, 'str');
-					}
-					
-					// split at the , outside the strings
-					w = w.join('').split(',');
-					
-					// put it into the byte array
-					for (j = 0; j < w.length; j++) {
-						if (_.trim(w[j]) == 'str') {
-							w[j] = rom.shift();
-							for (k = 0; k < w[j].length; k++) {
-								bc.push(w[j].charCodeAt(k) & _.maxWord);
-								pt++;
-							}
-						} else {
-							bc.push(_.parseInt(_.trim(w[j])));
-							pt++;
-						}
-					}
-					continue;
-				}
-				
-				_.debug(token);
-				
-				w = _.opcodes[token.op.toUpperCase()];
-				bc.push(0);
-				
-				// basic op code
-				if (w > 0x0 && w < 0x10) {
-					for (j = 0; j < 2; j++) {
-						p = _.get(_.trim(token.params[j]));
-					
-						w = w | ((p[0] & 0x3f) << 4 + j * 6);
-						if (typeof p[1] != 'undefined') {
-							if (p[1].length && p[1].match && p[1].indexOf) {
-								resolve.push({
-									label: p[1],
-									oppt: pt,
-									pt: pt + inc,
-									par: j
-								});
-								bc.push(0x0);
-								inc++;
+					if (data.hasBrackets) {
+						/* handle
+							0x08-0x0f: [register]
+							0x10-0x17: [next word + register]
+							0x1e: [next word]
+						*/
+						if (data.isString) {
+							if (_.registers[data.value.toUpperCase()] >= 0) {
+								// is it a register?
+								value = _.registers[data.value.toUpperCase()] + 0x8;
+							} else if (_.values[data.value.toUpperCase()]) {
+								// is it PUSH, POP, PEEK, PC, SP or O?
+								// whoopsie, this is not allowed!
+								throw new ParserError('"' + data.value.toUpperCase() + '" is not allowed inside memory access brackets', line);
 							} else {
-								_.debug('push literal', p[1]);
-								bc.push(p[1] & _.maxWord);
-								inc++;
+								// it's a label!
+								pushLabel(data.value, storage);
+								value = 0x1e;
 							}
+						} else if (data.isNumber) {
+							push(data.value);
+							value = 0x1e;
+						} else if (data.isExpression) {
+							// allow only addition of exactly two summands for now
+							if (!data.children[0].isExpression && !data.children[1].isExpression) {
+								if (data.children[0].isString && _.registers[data.children[0].value.toUpperCase()] >= 0) {
+									reg = data.children[0];
+									addr = data.children[1];
+								} else if (data.children[1].isString && _.registers[data.children[1].value.toUpperCase()] >= 0) {
+									reg = data.children[1];
+									addr = data.children[0];
+								} else {
+									throw new ParserError('Expected a register', line);
+								}
+
+								if (addr.isString && _.registers[addr.value.toUpperCase()] >= 0) {
+									throw new ParserError('Expected number or label reference', line);
+								}
+								
+								value = _.registers[reg.value.toUpperCase()] + 0x10;
+								if (addr.isString) {
+									pushLabel(addr.value, storage);
+								} else if (addr.isNumber) {
+									push(addr.value);
+								} else {
+									throw new ParserError('can this case even occur?', line);
+								}
+							} else {
+								throw new ParserError('Expressions with more than one summand are not supported', line);
+							}
+						} else {
+							throw new ParserError('Invalid parameter "' + JSON.stringify(data) + '"', line);
+						}
+					} else {
+						/* handle
+							0x00-0x07: register (A, B, C, X, Y, Z, I or J, in that order)
+							0x18: POP / [SP++]
+							0x19: PEEK / [SP]
+							0x1a: PUSH / [--SP]
+							0x1b: SP
+							0x1c: PC
+							0x1d: O
+							0x1f: next word (literal)
+							0x20-0x3f: literal value 0x00-0x1f (literal)
+						*/
+						if (data.isString) {
+							if (_.registers[data.value.toUpperCase()] >= 0) {
+								// is it a register?
+								value = _.registers[data.value.toUpperCase()];
+							} else if (_.values[data.value.toUpperCase()]) {
+								// is it PUSH, POP, PEEK, PC, SP or O?
+								value = _.values[data.value.toUpperCase()];
+							} else {
+								// it's a label!
+								pushLabel(data.value, storage);
+								value = 0x1f;
+							}
+						} else if (data.isNumber) {
+							if (data.value < 0x20) {
+								value = data.value + 0x20;
+							} else {
+								push(data.value);
+								value = 0x1f;
+							}
+						} else {
+							throw new ParserError('Invalid parameter "' + JSON.stringify(data) + '"', line);
 						}
 					}
-				} else {
-					_.debug(token.params);
-					p = _.get(_.trim(token.params[0]));
-					_.debug(p, p[1].isLabel);
 
-					w = w | ((p[0] & 0x3f) << 10);
-					if (typeof p[1] != 'undefined') {
-						// move this into a new function and merge it with above
-						if (p[1].length && p[1].match && p[1].indexOf) {
-							_.debug('push label');
-							resolve.push({
-								label: p[1],
-								oppt: pt,
-								pt: pt + inc,
-								par: 0
-							});
-							bc.push(0x0);
-							inc++;
-						} else {
-							_.debug('write literal');
-							bc.push(p[1] & _.maxWord);
-							inc++;
+					op = op | ((value & 0x3f) << (4 + storage*6));
+				}; /* handleParameter */
+			
+			src = _.preprocess(src);
+			
+			try {
+				tokens = DCPU16.Parser.parse(src);
+				
+				for (i = 0; i < tokens.length; i++) {
+					node = tokens[i];
+
+					switch (node.action) {
+					case 'nop':
+						// e.g. a line completely consisting of a comment
+						continue;
+						break;
+					case 'op':
+						// standard op/label stuff
+						if (node.label) {
+							labels[node.label] = pc;
 						}
+						
+						if (!node.line) {
+							throw new ParserError('Undefined line');
+						}
+						
+						line = node.line;
+						meta.addr2line[pc] = line;
+						meta.line2addr[line] = pc;
+						
+						if (!node.cmd) {
+							// there is no command, continue with the next line
+							continue;
+						}
+						
+						// everything from node is done, continue with node.cmd
+						node = node.cmd;
+						
+						// handle the special op DAT
+						if (node.op === 'DAT') {
+							for (j = 0; j < node.params.length; j++) {
+								w = node.params[j];
+
+								if (w.isNumber) {
+									push(w.value);
+								} else if (w.isStringLiteral) {
+									w = _.resolveEscapeSequences(w.value);
+									for (k = 0; k < w.length; k++) {
+										push(w.charCodeAt(k));
+									}
+								} else {
+									throw new ParserError('Unknown DAT value "' + JSON.stringify(w) + '"', line);
+								}
+							}
+							continue;
+						}
+						
+						// handle the rest of the ops
+						op = _.opcodes[node.op];
+						if (typeof op === 'undefined') {
+							throw new ParserError('Unknown operator "' + '"', line);
+						};
+
+						// reserve space in mem for the opcode and values
+						oppc = pc;
+						push(0);
+						
+						// inc and op are going to be changed inside handleParameter
+						if (op > 0 && op <= 0xf) {
+							handleParameter(node.params[0], 0);
+							handleParameter(node.params[1], 1);
+						} else {
+							handleParameter(node.params[0], 1);
+						}
+						
+						bc[oppc] = op;
+						
+						break;
+					case 'macro':
+						throw new ParserError('Macros are not supported yet');
+						break;
+					case 'macrocall':
+						throw new ParserError('Macros are not supported yet');
+						break;
+					default:
+						throw new ParserError('Unknown or undefined action "' + op.action + '"', line);
 					}
 				}
-				
-				bc[pt] = w;
-				pt += inc;
+			} catch (e) {
+				throw new ParserError(e.message, e.line);
 			}
-			
-			inc = 0;
-			
-			_.debug(labels);
 			
 			for (i = 0; i < resolve.length; i++) {
 				w = resolve[i];
-				/*
-				if (labels[w.label] >= 0 && labels[w.label] < 0x20) {
-					// this is a little bit more complex because all the references to the other labels
-					// may change, too... :/
-					this._decLabelRef(labels, w.oppt);
-					bc[w.oppt-inc] = bc[w.oppt-inc] & ((0x3f << ((1-w.par)*6 + 4)) | 0xf);
-					bc[w.oppt-inc] = bc[w.oppt-inc] | ((0x20 + labels[w.label]) << (w.par*6+4));
-					bc.splice(w.pt-inc, 1);
-					inc++;
-				} else {*/
-				bc[w.pt] = labels[w.label];
-				//}
+				bc[w.pc] = labels[w.label];
 			}
+
 			
-			rom = [];
 			for (i = 0; i < bc.length; i++) {
 				rom.push((bc[i] >> 8) & 0xff);
 				rom.push(bc[i] & 0xff);
 			}
-			
+		    
 			return {
 				src: src,
 				bc: rom,
 				meta: meta
 			};
 		},
-		
 		dasm: function (rom) {
 			var src = [], currentline, i = 0, j = 0, bc = [],
 				op, values = [0, 0], startval = 0, w, par, line = 1,
@@ -849,12 +923,14 @@ var DCPU16 = (function () {
 						output += '</span><span style="' + lastStyle + '">';
 					}
 					
-					//if (i % 32 === 0) {
-					if (val & 0x7f === 0xA) {
-						output += '<br />';
-					} else {
-						output += String.fromCharCode(val & 0x7f);
+					if (i % 32 === 0) {
+						output += '\n';
 					}
+					/*if (val & 0x7f === 0xA) {
+						output += '<br />';
+					} else {*/
+					output += String.fromCharCode(val & 0x7f);
+					//}
 				}
 				
 				output += '</span>';

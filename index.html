@@ -1,6 +1,7 @@
 <html>
 	<head>
 		<script type="text/javascript" src="src/dcpu16.js"></script>
+		<script type="text/javascript" src="src/parser.js"></script>
 		<script type="text/javascript" src="src/base64.js"></script>
 		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
 		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/ace/0.2.0/ace.js"></script>
@@ -20,13 +21,13 @@
 	<a href="javascript:void(0);" onclick="load('example-breaking');">Example that breaks in some emulators</a>
 </p-->
 <p><a href="https://github.com/migerh/dcpu16.js">GitHub repo</a></p>
-<span style="font-size: 11px;">Click the line numbers to toggle breakpoints. Drop asm source files or rom files over the editor to load them. Click &quot;Assemble&quot; after you made changes to the source.</span>
+<span style="font-size: 11px;">Click the line numbers to toggle breakpoints. Drop asm source files or rom files over the editor to load them.</span>
 <p>
 	<div id="src" style="width: 800px; height: 400px; float: left;"></div>
 	<pre id="status" style="margin-left: 810px; width: 200px; height: 400px;"></pre>
 </p>
 <p>
-	<button onclick="asm();">Assemble</button>
+	<!--button onclick="asm();">Assemble</button-->
 	<button onclick="step();">Step</button>
 	<button onclick="start();">Start</button>
 	<button onclick="stop();">Stop</button>
@@ -37,7 +38,7 @@
 <button onclick="gotoRam('SP');" onmouseover="highlightRam('SP');" onmousemove="highlightRam('SP');" onmouseout="highlightRam('none');">SP</button>
 <button onclick="gotoRam('PC');" onmouseover="highlightRam('PC');" onmousemove="highlightRam('PC');" onmouseout="highlightRam('none');">PC</button><br />
 <pre id="ram" style="margin-top: 0; width: 400px; height: 170px; font-size: 14px; overflow-x: hidden; overflow-y: scrollbar; float: left;"></pre>
-<div id="out" style="margin-left: 410px; width: 400px; height: 170px; background-color: black; border: 1px solid black;"></div>
+<pre id="out" style="margin-left: 410px; width: 400px; height: 170px; background-color: black; border: 1px solid green;"></pre>
 
 <script type="text/javascript">
 	var PC, assembly, editor, marker,
@@ -53,17 +54,34 @@
 			editor.gotoLine(line);
 		},
 		newPC = function () {
-			PC = new DCPU16.PC(assembly.bc);
-			PC.on('update', printStatus, this);
-			printStatus();
+			if (assembly) {
+				PC = new DCPU16.PC(assembly.bc);
+				PC.on('update', printStatus, this);
+				printStatus();
+			}
 		},
 		asm = function () {
 			var src = editor.getSession().getValue(),
-				bc = DCPU16.asm(src);
-
-			assembly = bc;
-
-			newPC();			
+				cursor = editor.getCursorPosition();
+			
+			editor.getSession().clearAnnotations();
+			
+			try {
+				assembly = DCPU16.asm(src);
+				newPC();
+			} catch (e) {
+				editor.getSession().removeMarker(marker);
+				assembly = null;
+				PC.clear();
+				editor.getSession().setAnnotations([{
+					row: e.line-1,
+					column: 0,
+					text: e.toString(),
+					type: 'error'
+				}]);
+			}
+			
+			editor.moveCursorToPosition(cursor);
 		},
 		step = function () {
 			PC.step();
@@ -127,7 +145,7 @@
 			if (where) {
 				where = PC.ram[where];
 			} else {
-				where = DCPU16._.parseInt($('#jumpto').val());
+				where = DCPU16.parseInt($('#jumpto').val());
 			}
 			where = Math.min(Math.floor(where/8), 0xffb0/8),
 			
@@ -143,7 +161,7 @@
 			if (where) {
 				where = PC.ram[where];
 			} else {
-				where = DCPU16._.parseInt($('#jumpto').val());
+				where = DCPU16.parseInt($('#jumpto').val());
 			}
 			
 			$('#ram-word-' + where).css('background-color', 'pink');
@@ -154,7 +172,8 @@
 	
 	window.onload = function () {
 		editor = ace.edit("src");
-		
+		$('#src').css('font-size', '14px');
+
 		$('#src > div.ace_gutter').on('click', function (e) {
 			var line = $(e.toElement),
 				lineNumber = line.html().match(/\d*$/);
@@ -230,7 +249,8 @@
 			}
         }, false);
 		
-		load('example-screen');
+		load('example-breaking');
+		editor.getSession().on('change', asm);
 		asm();
 	};
 </script>
@@ -278,13 +298,13 @@
 	set b, 0xf100
 
 :nextchar
-	set a, (data+i)
+	set a, [data+i]
 	ife a, 0
 		set PC, end
 	ifg a, 0xff
 		set PC, setcolor
 	bor a, b
-	set (0x8000+j), a
+	set [0x8000+j], a
 	add i, 1
 	add j, 1
 	set PC, nextchar

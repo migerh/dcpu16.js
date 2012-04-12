@@ -19,10 +19,10 @@ start
 
 
 statements
-  = stmt:stmt nl* statements:statements
+  = nl* stmt:stmt statements:statements
     { return [stmt].concat(statements); }
 
-  / stmt:stmt nl*
+  / stmt:stmt
     { return [stmt]; }
 
   / nl*
@@ -78,11 +78,11 @@ stmt
       };
     }
 
-
-label "label"
-  = label:([a-zA-Z0-9_\.]+)
+  / comment
     {
-      return label.join('');
+      return {
+        action: "nop"
+      };
     }
 
 
@@ -123,7 +123,7 @@ additive
   = left:value "+" right:additive
     {
       return {
-        action: "add",
+        isExpression: true,
         children: [left, right]
       };
     }
@@ -147,6 +147,14 @@ value
         isString: true
       };
     }
+  / "\"" v:strliteral "\""
+    {
+      return {
+        value: v,
+        isStringLiteral: true
+      };
+    }
+
 
 number "number"
   /* oct */
@@ -159,12 +167,30 @@ number "number"
   / v:[0-9]+
     { return parseInt(v.join(''), 10); }
 
+strliteral "stringliteral"
+  = v:allbutquotes*
+    { return v.join(''); }
+
+label "label"
+  = label:([a-zA-Z0-9_\.]+)
+    {
+      return label.join('');
+    }
+
+allbutquotes
+  = v:"\\\""
+    { return "\""; }
+  / v:[^\"]
+    { return v; }
+
+comment
+  = ";" [^\n\r]*
 
 ws "whitespace"
-  = [" ""\t"]*
-
+  = " "*
 
 nl "newline"
-  = "\n" { line++; }
-  / "\r\n" { line++; }
-  / "\r" { line++; }
+  = "\n" ws { line++; }
+  / "\r\n" ws { line++; }
+  / "\r" ws { line++; }
+
