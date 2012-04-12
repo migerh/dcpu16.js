@@ -81,18 +81,10 @@ op "operator"
 
 
 param "parameter"
-  = "[" ws vn:number ws "+" ws vr:register ws "]"
+  = "[" ws v1:paramaddress ws "+" ws v2:paramaddress ws "]"
     {
       return {
-        register: vr,
-        nextWord: vn
-      };
-    }
-  / "[" ws vr:register ws "+" ws vn:number ws "]"
-    {
-      return {
-        register: vr,
-        nextWord: vn
+        values: [v1, v2]
       };
     }
   / "[" ws v:paramaddress ws "]"
@@ -100,20 +92,13 @@ param "parameter"
       v.hasBrackets = true;
       return v;
     }
-  / v:paramvalue
+  / v:paramaddress
     {
       return v;
     }
 
 paramaddress
-  = v:register
-    {
-      return {
-        value: v,
-        isRegister: true
-      };
-    }
-  / v:number
+  = v:number
     {
       return {
         value: v,
@@ -124,41 +109,9 @@ paramaddress
     {
       return {
         value: v,
-        isLabel: true
+        isString: true
       };
     }
-
-paramvalue
-  = v:paramconst
-    {
-      return {
-        value: v,
-        isSpecial: true
-      };
-    }
-  / v:paramaddress
-    {
-      return v;
-    }
-
-paramconst
-  = [pP][uU][sS][hH]
-    { return 0x1a; }
-  / [pP][oO][pP]
-    { return 0x18; }
-  / [pP][eE][eE][kK]
-    { return 0x19; }
-  / [sS][pP]
-    { return 0x1b; }
-  / [pP][cC]
-    { return 0x1c; }
-  / [oO]
-    { return 0x1d; }
-
-
-register "register"
-  = v:[a-cx-zijoA-CX-ZIJ]
-    { return v.toUpperCase(); }
 
 number "number"
   /* oct */
