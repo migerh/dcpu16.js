@@ -1,9 +1,14 @@
 /*
+ * Classic example grammar, which recognizes simple arithmetic expressions like
+ * "2*(3+4)". The parser generated from this grammar then computes their value.
+ */
+
+/*
  * DCPU16 ASM Parser
  */
 
 {
-  var line = 0;
+  var line = 1;
 }
 
 start
@@ -30,7 +35,8 @@ stmt
       return {
         line: line,
         label: label,
-        cmd: cmd
+        cmd: cmd,
+        type: "op"
       };
     }
 
@@ -38,7 +44,29 @@ stmt
     {
       return {
         line: line,
-        label: label
+        label: label,
+        type: "op"
+      };
+    }
+
+  / "#macro" ws name:label ws "(" ws params:paramlist ws ")" ws "{" ws nl code:statements ws "}" ws
+    {
+      return {
+        line: line,
+        name: name,
+        params: params,
+        src: code,
+        type: "macro"
+      };
+    }
+
+  / ws name:label ws "(" ws params:paramlist ws ")"
+    {
+      return {
+        line: line,
+        name: name,
+        params: params,
+        type: "macrocall"
       };
     }
 
@@ -46,7 +74,8 @@ stmt
     {
       return {
         line: line,
-        cmd: cmd
+        cmd: cmd,
+        type: "op"
       };
     }
 
@@ -59,52 +88,59 @@ label "label"
 
 
 cmd
-  = ws op:op ws param1:param ws "," ws param2:param
+  = ws op:op ws plist:paramlist
     {
       return {
         op: op,
-        params: [param1, param2]
+        params: plist
       };
     }
-
-  / ws op:op ws param:param
-    {
-      return {
-        op: op,
-        params: [param]
-      };
-    }
-
 
 op "operator"
   = op:([a-zA-Z][a-zA-Z][a-zA-Z]) { return op.join('').toUpperCase(); }
 
+paramlist
+  = v:param ws "," ws l:paramlist
+    {
+      return [v].concat(l);
+    }
+  / v:param
+    {
+      return [v];
+    }
 
 param "parameter"
-  = "[" ws v1:paramaddress ws "+" ws v2:paramaddress ws "]"
-    {
-      return {
-        values: [v1, v2]
-      };
-    }
-  / "[" ws v:paramaddress ws "]"
+  = "[" v:additive "]"
     {
       v.hasBrackets = true;
       return v;
     }
-  / v:paramaddress
+  / v:value
     {
       return v;
     }
 
-paramaddress
+additive
+  = left:value "+" right:additive
+    {
+      return {
+        action: "add",
+        children: [left, right]
+      };
+    }
+  / v:value
+    {
+      return v;
+    }
+
+value
   = v:number
-    {
-      return {
-        value: v,
+    {
+      return {
+        value: v,
         isNumber: true
-      };
-    }
+      };
+    }
   / v:label
     {
       return {
