@@ -36,7 +36,7 @@ stmt
         line: line,
         label: label,
         cmd: cmd,
-        type: "op"
+        action: "op"
       };
     }
 
@@ -45,18 +45,17 @@ stmt
       return {
         line: line,
         label: label,
-        type: "op"
+        action: "op"
       };
     }
 
-  / "#macro" ws name:label ws "(" ws params:paramlist ws ")" ws "{" ws nl code:statements ws "}" ws
+  / ws "#macro"? ws name:label ws "(" ws params:paramlist ws ")" ws nl? "{" ws nl? code:statements ws "}" ws
     {
       return {
-        line: line,
         name: name,
         params: params,
         src: code,
-        type: "macro"
+        action: "macro"
       };
     }
 
@@ -66,7 +65,7 @@ stmt
         line: line,
         name: name,
         params: params,
-        type: "macrocall"
+        action: "macrocall"
       };
     }
 
@@ -75,7 +74,7 @@ stmt
       return {
         line: line,
         cmd: cmd,
-        type: "op"
+        action: "op"
       };
     }
 
