@@ -21,9 +21,12 @@ TestCase("Jumps", {
     		'SET B, 0xA\n' +
     		':label SET A, 0xB\n' +
     		':halt SET PC, halt';
-    	
-    	this.cpu.load(DCPU16.asm(src));
+    	try {
+    	this.cpu.load(DCPU16.asm(src).bc);
     	this.cpu.steps(5);
+    	} catch (e) {
+    		console.log(e);
+    	}
     	
     	assertEquals('jump failed A', 0xB, this.cpu.ram.A);
     	assertEquals('jump failed B', 0x0, this.cpu.ram.B);
@@ -38,7 +41,7 @@ TestCase("Jumps", {
     		':laxbel SET A, 0xB\n' +
     		':halt SET PC, halt';
     	
-    	this.cpu.load(DCPU16.asm(src));
+    	this.cpu.load(DCPU16.asm(src).bc);
     	this.cpu.steps(5);
     	
     	assertEquals('jump failed A', 0xB, this.cpu.ram.A);

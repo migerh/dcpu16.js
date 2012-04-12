@@ -22,7 +22,7 @@ TestCase("Krasin", {
     		'ADD X, Y\n' +
     		':halt SET PC, halt';
     	
-    	this.cpu.load(DCPU16.asm(src));
+    	this.cpu.load(DCPU16.asm(src).bc);
     	this.cpu.steps(5);
     	
     	assertEquals('addition failed X', 5, this.cpu.ram.X);
@@ -39,7 +39,7 @@ TestCase("Krasin", {
 			'SET X, 0\n' +
     		':halt SET PC, halt';
     	
-    	this.cpu.load(DCPU16.asm(src));
+    	this.cpu.load(DCPU16.asm(src).bc);
     	this.cpu.steps(5);
     	
     	assertEquals('IFE failed X', 5, this.cpu.ram.X);
@@ -58,7 +58,7 @@ TestCase("Krasin", {
 			'SET Z, [2+X]\n' +
     		':halt SET PC, halt';
     	
-    	this.cpu.load(DCPU16.asm(src));
+    	this.cpu.load(DCPU16.asm(src).bc);
     	this.cpu.steps(10);
     	
     	assertEquals('failed X', 98, this.cpu.ram.X);
@@ -74,7 +74,7 @@ TestCase("Krasin", {
 	    	'SET Y, 0xF\n' +
     		':halt SET PC, halt';
     	
-    	this.cpu.load(DCPU16.asm(src));
+    	this.cpu.load(DCPU16.asm(src).bc);
     	this.cpu.steps(3);
     	
     	assertEquals('failed X', 0xFFFF, this.cpu.ram.X);
@@ -90,7 +90,7 @@ TestCase("Krasin", {
 			'SUB X, Y\n' +
     		':halt SET PC, halt';
     	
-    	this.cpu.load(DCPU16.asm(src));
+    	this.cpu.load(DCPU16.asm(src).bc);
     	this.cpu.steps(5);
     	
     	assertEquals('failed X', 7, this.cpu.ram.X);

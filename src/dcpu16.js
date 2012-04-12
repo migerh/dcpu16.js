@@ -668,15 +668,21 @@ var DCPU16 = (function () {
 			this.exec = function (op, a, b) {
 				var tmp, addrA, valB;
 				
-				addrA = this.getAddress(a);
+				if (op > 0 && op < 0xc) {
+					addrA = this.getAddress(a);
+				} else {
+					// special treatment for conditions
+					addrA = this.getValue(a);
+				}
 				valB = this.getValue(b);
 
 				// fail silently
-				if (!addrA || this.skipNext) {
+				// BUT NOT FOR CONDITIONS, STUPID!!!
+				if ((op > 0 && op < 0xc) && (!addrA || this.skipNext)) {
 					this.skipNext = false;
 					return;
 				}
-				
+
 				switch (op) {
 				case 0:
 					// jshint complains about this switch that it should be an if
@@ -774,25 +780,25 @@ var DCPU16 = (function () {
 					this.setWord(addrA, tmp);
 					break;
 				case 0xc: // IFE
-					if (this.getWord(addrA) !== valB) {
+					if (addrA !== valB) {
 						this.skipNext = true;
 						this.step();
 					}
 					break;
 				case 0xd: // IFN
-					if (this.getWord(addrA) === valB) {
+					if (addrA === valB) {
 						this.skipNext = true;
 						this.step();
 					}
 					break;
 				case 0xe: // IFG
-					if (this.getWord(addrA) <= valB) {
+					if (addrA <= valB) {
 						this.skipNext = true;
 						this.step();
 					}
 					break;
 				case 0xf: // IFB
-					if (this.getWord(addrA) & valB === 0) {
+					if (addrA & valB === 0) {
 						this.skipNext = true;
 						this.step();
 					}
@@ -841,7 +847,7 @@ var DCPU16 = (function () {
 				var _this = this,
 					timer = 30,
 					runner = function () {
-						if (_this.isRunning && _this.steps(100)) {
+						if (_this.isRunning && _this.steps(2000)) {
 							setTimeout(runner, timer);
 						} else {
 							_this.stop();
@@ -862,21 +868,28 @@ var DCPU16 = (function () {
 				// this is very inefficient and by far not the best way but
 				// it is only to test if i have the right color scheme.
 				var i, val,
-					screenSize = 0x800, screenBase = 0x8000,
+					screenSize = 0x200, screenBase = 0x8000,
 					lastStyle = 'background-color: #000; color: #fff;',
-					style = '',
+					style = '', color,
 					output = '<span style="' + lastStyle + '">';
 				
-				for (i = 0; i < 0x800; i++) {
+				for (i = 0; i < screenSize; i++) {
 					val = this.getWord(screenBase + i);
+					
+					if (val & 128) {
+						color = 'f';
+					} else {
+						color = '8';
+					}
+					
 					style = 'background-color: #' +
-						(((val >> 8) & 4) ? 'f' : '0') +
-						(((val >> 8) & 2) ? 'f' : '0') +
-						(((val >> 8) & 1) ? 'f' : '0') +
+						(((val >> 8) & 4) ? color : '0') +
+						(((val >> 8) & 2) ? color : '0') +
+						(((val >> 8) & 1) ? color : '0') +
 						'; color: #' +
-						(((val >> 12) & 4) ? 'f' : '0') +
-						(((val >> 12) & 2) ? 'f' : '0') +
-						(((val >> 12) & 1) ? 'f' : '0') + ';';
+						(((val >> 12) & 4) ? color : '0') +
+						(((val >> 12) & 2) ? color : '0') +
+						(((val >> 12) & 1) ? color : '0') + ';';
 					
 					if (style != lastStyle) {
 						lastStyle = style;
@@ -886,11 +899,13 @@ var DCPU16 = (function () {
 					if (i % 32 === 0) {
 						output += '\n';
 					}
-					/*if (val & 0x7f === 0xA) {
-						output += '<br />';
-					} else {*/
-					output += String.fromCharCode(val & 0x7f);
-					//}
+					
+					val = val & 0x7f;
+					if (val < 10) {
+						output += " ";
+					} else {
+						output += String.fromCharCode(val & 0x7f);
+					}
 				}
 				
 				output += '</span>';
