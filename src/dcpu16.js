@@ -86,8 +86,8 @@ var DCPU16 = (function () {
 						.replace(/\\r/g, '\r')
 						.replace(/\\t/g, '\t')
 						//.replace(/\\'/g, '\'')
-						.replace(/\\"/g, '"')
-						.replace(/\\0/g, '\0');
+						.replace(/\\"/g, '"');
+						//.replace(/\\0/g, '\0');
 		},
 		preprocess: function (src) {
 			// eliminate tabs
@@ -141,7 +141,7 @@ var DCPU16 = (function () {
 					bc.push(0);
 					pc++;
 				},
-				handleParameter = function (data, storage) {
+				handleParameter = function (data, storage, line) {
 					// this function changes the local variables op and inc
 					var value, hasLabel = false,
 						addr, reg;
@@ -244,7 +244,7 @@ var DCPU16 = (function () {
 						}
 					}
 
-					op = op | ((value & 0x3f) << (4 + storage*6));
+					op = op | ((value & 0x3f) << (4 + storage * 6));
 				},
 				replaceValueStrings = function (tokens, parameter, value) {
 					var i, j, k, w;
@@ -287,7 +287,6 @@ var DCPU16 = (function () {
 						case 'nop':
 							// e.g. a line completely consisting of a comment
 							continue;
-							break;
 						case 'op':
 							// standard op/label stuff
 							if (node.label) {
@@ -335,7 +334,7 @@ var DCPU16 = (function () {
 							op = _.opcodes[node.op];
 							if (typeof op === 'undefined') {
 								throw new ParserError('Unknown operator "' + '"', line);
-							};
+							}
 	
 							// reserve space in mem for the opcode and values
 							oppc = pc;
@@ -343,10 +342,10 @@ var DCPU16 = (function () {
 							
 							// inc and op are going to be changed inside handleParameter
 							if (op > 0 && op <= 0xf) {
-								handleParameter(node.params[0], 0);
-								handleParameter(node.params[1], 1);
+								handleParameter(node.params[0], 0, line);
+								handleParameter(node.params[1], 1, line);
 							} else {
-								handleParameter(node.params[0], 1);
+								handleParameter(node.params[0], 1, line);
 							}
 							
 							bc[oppc] = op;
@@ -363,7 +362,7 @@ var DCPU16 = (function () {
 							macro = macros[node.name];
 							
 							if (typeof macro === 'undefined') {
-								throw new ParserError('Unknown macro "' + node.name + '"', line+1);
+								throw new ParserError('Unknown macro "' + node.name + '"', line + 1);
 							}
 							
 							// TODO make this compatible to browsers without native JSON
@@ -371,7 +370,7 @@ var DCPU16 = (function () {
 							
 							for (j = 0; j < macro.params.length; j++) {
 								if (!node.params[j] || !node.params[j].value) {
-									throw new ParseError('Not enough parameters given', line);
+									throw new ParserError('Not enough parameters given', line);
 								}
 								
 								w = replaceValueStrings(w, macro.params[j].value, node.params[j].value);
@@ -468,13 +467,13 @@ var DCPU16 = (function () {
 						};
 					} else if (w >= 0x8 && w < 0x10) {
 						par = {
-							str: '[' + _.registers_rev[w-0x8] + ']'
+							str: '[' + _.registers_rev[w - 0x8] + ']'
 						};
 					} else if (w >= 0x10 && w < 0x18) {
 						par = {
-							str: '[' + _.printHex(bc[i]) + '+' + _.registers_rev[w-0x10] + ']',
+							str: '[' + _.printHex(bc[i]) + '+' + _.registers_rev[w - 0x10] + ']',
 							labelTo: bc[i++],
-							register: _.registers_rev[w-0x10]
+							register: _.registers_rev[w - 0x10]
 						};
 					} else if (w >= 0x18 && w < 0x1e) {
 						par = {
@@ -491,16 +490,16 @@ var DCPU16 = (function () {
 						};
 						
 						if (isPC) {
-							par.labelTo = bc[i-1];
+							par.labelTo = bc[i - 1];
 							par.setPC = true;
 						}
 					} else {
 						par = {
-							str: _.printHex(w-0x20)
+							str: _.printHex(w - 0x20)
 						};
 						
 						if (isPC) {
-							par.labelTo = w-0x20;
+							par.labelTo = w - 0x20;
 							par.setPC = true;
 						}
 					}
@@ -521,14 +520,14 @@ var DCPU16 = (function () {
 				for (j = 0; j < w.params.length; j++) {
 					if (w.params[j].labelTo && meta.addr2line[w.params[j].labelTo]) {
 						line = meta.addr2line[w.params[j].labelTo];
-						src[line-1].label = 'line' + (line+1);
+						src[line - 1].label = 'line' + (line + 1);
 						
 						if (w.params[j].register) {
-							w.params[j].str = '[line' + (line+1) + '+' + w.params[j].register + ']';
+							w.params[j].str = '[line' + (line + 1) + '+' + w.params[j].register + ']';
 						} else if (w.params[j].setPC) {
-							w.params[j].str = 'line' + (line+1);
+							w.params[j].str = 'line' + (line + 1);
 						} else {
-							w.params[j].str = '[line' + (line+1) + ']';
+							w.params[j].str = '[line' + (line + 1) + ']';
 						}
 					}
 					
