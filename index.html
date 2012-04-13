@@ -41,7 +41,7 @@
 <pre id="out" style="margin-left: 410px; margin-top: -80px; width: 50px; font-size: 24px;"></pre>
 
 <script type="text/javascript">
-	var PC, assembly, editor, marker,
+	var PC, assembly, editor, marker, lastUpdate = 0,
 		Range = require("ace/range").Range,
 		
 		load = function (what) {
@@ -91,6 +91,7 @@
 		},
 		stop = function () {
 			PC.stop();
+			setTimeout(printStatus, 30);
 		},
 		printValue = function (v) {
 			var r = v.toString(16),
@@ -104,31 +105,38 @@
 		},
 		printStatus = function () {
 			var out = [];
-			
-			markLine(assembly.meta.addr2line[PC.ram.PC]);
-			out.push('A  = ' + printValue(PC.ram.A) + '    ');
-			out.push('B  = ' + printValue(PC.ram.B) + '<br />');
-			out.push('C  = ' + printValue(PC.ram.C) + '    ');
-			out.push('X  = ' + printValue(PC.ram.X) + '<br />');
-			out.push('Y  = ' + printValue(PC.ram.Y) + '    ');
-			out.push('Z  = ' + printValue(PC.ram.Z) + '<br />');
-			out.push('I  = ' + printValue(PC.ram.I) + '    ');
-			out.push('J  = ' + printValue(PC.ram.J) + '<br /><br />');
 
-			out.push('PC = ' + printValue(PC.ram.PC) + '    ');
-			out.push('SP = ' + printValue(PC.ram.SP) + '<br />');
-			out.push('O  = ' + printValue(PC.ram.O) + '<br /><br />');
-			out.push('Stack: <br />');
-			if (PC.ram.SP > 0xFF00) {
-				for (i = PC.ram.SP; i < 0x10000; i++ ) {
-					out.push('[' + printValue(PC.getWord(i)) + ']<br />');
+			// 20 fps			
+			if (new Date().getTime() - lastUpdate > 50) {
+				if (!PC.isRunning) {
+					markLine(assembly.meta.addr2line[PC.ram.PC]);
 				}
+				out.push('A  = ' + printValue(PC.ram.A) + '    ');
+				out.push('B  = ' + printValue(PC.ram.B) + '<br />');
+				out.push('C  = ' + printValue(PC.ram.C) + '    ');
+				out.push('X  = ' + printValue(PC.ram.X) + '<br />');
+				out.push('Y  = ' + printValue(PC.ram.Y) + '    ');
+				out.push('Z  = ' + printValue(PC.ram.Z) + '<br />');
+				out.push('I  = ' + printValue(PC.ram.I) + '    ');
+				out.push('J  = ' + printValue(PC.ram.J) + '<br /><br />');
+
+				out.push('PC = ' + printValue(PC.ram.PC) + '    ');
+				out.push('SP = ' + printValue(PC.ram.SP) + '<br />');
+				out.push('O  = ' + printValue(PC.ram.O) + '<br /><br />');
+				out.push('Stack: <br />');
+				if (PC.ram.SP > 0xFF00) {
+					for (i = PC.ram.SP; i < 0x10000; i++ ) {
+						out.push('[' + printValue(PC.getWord(i)) + ']<br />');
+					}
+				}
+			
+				$('#status').html(out.join(''));
+				$('#out').html(PC.screen2html());
+				
+				gotoRam();
+
+				lastUpdate = new Date().getTime();
 			}
-			
-			$('#status').html(out.join(''));
-			$('#out').html(PC.screen2html());
-			
-			gotoRam();
 		},
 		printRam = function (offset) {
 			var i, ram = [];

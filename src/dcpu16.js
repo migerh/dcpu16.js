@@ -700,7 +700,6 @@ var DCPU16 = (function () {
 					}
 					break;
 				case 0x1: // SET
-					_.debug('SET', addrA.toString(16), valB.toString(16));
 					this.setWord(addrA, valB);
 					break;
 				case 0x2: // ADD
@@ -799,7 +798,7 @@ var DCPU16 = (function () {
 					}
 					break;
 				case 0xf: // IFB
-					if (addrA & valB === 0) {
+					if ((addrA & valB) === 0) {
 						this.skipNext = true;
 						this.step();
 					}
@@ -815,7 +814,6 @@ var DCPU16 = (function () {
 				
 				trigger = _.def(trigger, true);
 					
-				_.debug(op, a, b);
 				this.exec(op, a, b);
 				this.stepCount++;
 				
@@ -848,7 +846,7 @@ var DCPU16 = (function () {
 				var _this = this,
 					timer = 30,
 					runner = function () {
-						if (_this.isRunning && _this.steps(2000)) {
+						if (_this.isRunning && _this.steps(1000)) {
 							setTimeout(runner, timer);
 						} else {
 							_this.stop();
@@ -872,12 +870,12 @@ var DCPU16 = (function () {
 					screenSize = 0x200, screenBase = 0x8000,
 					lastStyle = 'background-color: #000; color: #fff;',
 					style = '', color,
-					output = '<span style="' + lastStyle + '">';
+					output = ['<span style="', lastStyle, '">'];
 				
 				for (i = 0; i < screenSize; i++) {
 					val = this.getWord(screenBase + i);
 					
-					if (val & 128) {
+					if (val & 0x800) {
 						color = 'f';
 					} else {
 						color = '8';
@@ -886,32 +884,39 @@ var DCPU16 = (function () {
 					style = 'background-color: #' +
 						(((val >> 8) & 4) ? color : '0') +
 						(((val >> 8) & 2) ? color : '0') +
-						(((val >> 8) & 1) ? color : '0') +
-						'; color: #' +
+						(((val >> 8) & 1) ? color : '0');
+
+					if (val & 0x8000) {
+						color = 'f';
+					} else {
+						color = '8';
+					}
+					style += '; color: #' +
 						(((val >> 12) & 4) ? color : '0') +
 						(((val >> 12) & 2) ? color : '0') +
 						(((val >> 12) & 1) ? color : '0') + ';';
 					
 					if (style != lastStyle) {
 						lastStyle = style;
-						output += '</span><span style="' + lastStyle + '">';
+						output.push('</span><span style="', lastStyle, '">');
 					}
 					
 					if (i % 32 === 0) {
-						output += '\n';
+						output.push('\n');
 					}
 					
 					val = val & 0x7f;
 					if (val < 10) {
-						output += " ";
+						output.push(" ");
 					} else {
-						output += String.fromCharCode(val & 0x7f);
+						//output += String.fromCharCode(val & 0x7f);
+						output.push('&#', (val & 0x7f).toString(), ';');
 					}
 				}
 				
-				output += '</span>';
+				output.push('</span>');
 				
-				return output;
+				return output.join('');
 			};
 			
 			this.clear();
