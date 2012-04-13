@@ -9,6 +9,7 @@
 
 {
   var line = 1;
+  var tmp;
 }
 
 start
@@ -30,26 +31,7 @@ statements
 
 
 stmt
-  = ws ":" label:label ws cmd:cmd ws
-    {
-      return {
-        line: line,
-        label: label,
-        cmd: cmd,
-        action: "op"
-      };
-    }
-
-  / ws ":" label:label ws
-    {
-      return {
-        line: line,
-        label: label,
-        action: "op"
-      };
-    }
-
-  / ws "#macro"? ws name:label ws "(" ws params:paramlist ws ")" ws nl? "{" ws nl? code:statements ws "}" ws
+  = ws "#macro"? ws name:label ws "(" ws params:paramlist ws ")" ws nl? "{" ws nl? code:statements ws "}" ws
     {
       return {
         name: name,
@@ -69,11 +51,24 @@ stmt
       };
     }
 
-  / ws cmd:cmd ws
+  / ws label:labeldef? ws cmd:cmd ws
+    {
+      tmp = {
+        line: line,
+        cmd: cmd,
+        action: "op"
+      };
+      if (label.length > 0) {
+        tmp.label = label;
+      }
+      return tmp;
+    }
+
+  / ws label:labeldef ws
     {
       return {
         line: line,
-        cmd: cmd,
+        label: label,
         action: "op"
       };
     }
@@ -99,12 +94,18 @@ op "operator"
   = op:([a-zA-Z][a-zA-Z][a-zA-Z]) { return op.join('').toUpperCase(); }
 
 paramlist
-  = v:param ws "," ws l:paramlist
+  = label:labeldef? ws v:param ws "," ws l:paramlist
     {
+      if (label.length > 0) {
+        v.label = label;
+      }
       return [v].concat(l);
     }
-  / v:param
+  / label:labeldef? ws v:param
     {
+      if (label.length > 0) {
+        v.label = label;
+      }
       return [v];
     }
 
@@ -170,6 +171,10 @@ number "number"
 strliteral "stringliteral"
   = v:allbutquotes*
     { return v.join(''); }
+
+labeldef
+  = ":" l:label
+    { return l; }
 
 label "label"
   = label:([a-zA-Z0-9_\.]+)

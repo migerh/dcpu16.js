@@ -31,6 +31,7 @@
 	<button onclick="step();">Step</button>
 	<button onclick="start();">Start</button>
 	<button onclick="stop();">Stop</button>
+	<button onclick="clear();">Clear</button>
 	<button onclick="downloadRom();">Download rom</button>
 </p>
 
@@ -92,6 +93,9 @@
 		stop = function () {
 			PC.stop();
 			setTimeout(printStatus, 30);
+		},
+		clear = function () {
+			PC.clear();
 		},
 		printValue = function (v) {
 			var r = v.toString(16),

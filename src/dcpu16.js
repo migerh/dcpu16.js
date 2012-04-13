@@ -115,7 +115,7 @@ var DCPU16 = (function () {
 		// some of the helper methods might be useful outside the assembler and emulator scope
 		parseInt: _.parseInt,
 		// assembler
-		asm: function (src) {
+		asm: function (src, options) {
 			var tokens,
 				bc = [], rom = [],
 				labels = {}, resolve = [], macros = {},
@@ -143,8 +143,13 @@ var DCPU16 = (function () {
 				},
 				handleParameter = function (data, storage) {
 					// this function changes the local variables op and inc
-					var value,
+					var value, hasLabel = false,
 						addr, reg;
+						
+					if (data.label && data.label.length > 0) {
+						labels[data.label] = pc;
+						hasLabel = true;
+					}
 					
 					if (data.hasBrackets) {
 						/* handle
@@ -223,8 +228,12 @@ var DCPU16 = (function () {
 								pushLabel(data.value, storage);
 								value = 0x1f;
 							}
-						} else if (data.isNumber) {
-							if (data.value < 0x20) {
+						} else if (data.isNumber || (data.isStringLiteral && data.value.length > 0)) {
+							if (data.isStringLiteral) {
+								data.value = data.value.charCodeAt(0);
+							}
+							
+							if (!hasLabel && data.value < 0x20) {
 								value = data.value + 0x20;
 							} else {
 								push(data.value);
@@ -313,6 +322,8 @@ var DCPU16 = (function () {
 										for (k = 0; k < w.length; k++) {
 											push(w.charCodeAt(k));
 										}
+									} else if (w.isString) {
+										pushLabel(w.value, 0);
 									} else {
 										throw new ParserError('Unknown DAT value "' + JSON.stringify(w) + '"', line);
 									}
@@ -373,6 +384,8 @@ var DCPU16 = (function () {
 						}
 					}
 				};
+				
+			options = options || {};
 			
 			src = _.preprocess(src);
 			
@@ -398,7 +411,7 @@ var DCPU16 = (function () {
 				meta: meta
 			};
 		},
-		dasm: function (rom) {
+		dasm: function (rom, options) {
 			var src = [], currentline, i = 0, j = 0, bc = [],
 				op, values = [0, 0], startval = 0, w, par, line = 1,
 				labels = {}, romlen, isPC,
