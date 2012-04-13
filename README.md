@@ -42,8 +42,9 @@ be accessed as properties of the ram:
 
 	var valueOfRegisterA = PC.ram.A;
 
-To convert the content of the screen buffer to a html formatted string, use
-	PC.screen2html();
+To render the content of the screen buffer use
+	PC.renderScreen(canvas);
+where *canvas* is a canvas context.
 
 Acknowledgements
 ================

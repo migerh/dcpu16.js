@@ -31,7 +31,7 @@
 	<button onclick="step();">Step</button>
 	<button onclick="start();">Start</button>
 	<button onclick="stop();">Stop</button>
-	<button onclick="clear();">Clear</button>
+	<button onclick="_clear();">Clear</button>
 	<button onclick="downloadRom();">Download rom</button>
 </p>
 
@@ -39,10 +39,10 @@
 <button onclick="gotoRam('SP');" onmouseover="highlightRam('SP');" onmousemove="highlightRam('SP');" onmouseout="highlightRam('none');">SP</button>
 <button onclick="gotoRam('PC');" onmouseover="highlightRam('PC');" onmousemove="highlightRam('PC');" onmouseout="highlightRam('none');">PC</button><br />
 <pre id="ram" style="margin-top: 0; width: 400px; height: 170px; font-size: 14px; overflow-x: hidden; overflow-y: scrollbar; float: left;"></pre>
-<pre id="out" style="margin-left: 410px; margin-top: -80px; width: 50px; font-size: 24px;"></pre>
+<canvas id="out" width="512" height="384" style="margin-top: -60px;">Canvas is not supported.</canvas>
 
 <script type="text/javascript">
-	var PC, assembly, editor, marker, lastUpdate = 0,
+	var PC, assembly, editor, marker, lastUpdate = 0, canvas,
 		Range = require("ace/range").Range,
 		
 		load = function (what) {
@@ -94,8 +94,8 @@
 			PC.stop();
 			setTimeout(printStatus, 30);
 		},
-		clear = function () {
-			PC.clear();
+		_clear = function () {
+			newPC();
 		},
 		printValue = function (v) {
 			var r = v.toString(16),
@@ -135,9 +135,9 @@
 				}
 			
 				$('#status').html(out.join(''));
-				$('#out').html(PC.screen2html());
 				
 				gotoRam();
+				PC.renderScreen(canvas);
 
 				lastUpdate = new Date().getTime();
 			}
@@ -185,6 +185,8 @@
 	window.onload = function () {
 		editor = ace.edit("src");
 		$('#src').css('font-size', '14px');
+		
+		canvas = document.getElementById('out').getContext('2d');
 
 		$('#src > div.ace_gutter').on('click', function (e) {
 			var line = $(e.toElement),
