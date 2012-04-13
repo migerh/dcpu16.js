@@ -400,8 +400,8 @@ var DCPU16 = (function () {
 			}
 			
 			for (i = 0; i < bc.length; i++) {
-				rom.push((bc[i] >> 8) & 0xff);
 				rom.push(bc[i] & 0xff);
+				rom.push((bc[i] >> 8) & 0xff);
 			}
 		    
 			return {
@@ -421,7 +421,7 @@ var DCPU16 = (function () {
 				};
 			
 			while (i < rom.length) {
-				bc.push(((rom[i++] & 0xff) << 8) | ((rom[i++] || 0) & 0xff));
+				bc.push((rom[i++] & 0xff) | (((rom[i++] || 0) & 0xff) << 8));
 			}
 			
 			romlen = bc.length;
@@ -649,7 +649,7 @@ var DCPU16 = (function () {
 				where = _.def(where, 0);
 				
 				while (i < rom.length) {
-					this.ram[where + i] = ((rom[2 * i] & 0xff) << 8) | ((rom[2 * i + 1] || 0) & 0xff);
+					this.ram[where + i] = ((rom[2 * i + 1] & 0xff) << 8) | ((rom[2 * i] || 0) & 0xff);
 					i++;
 				}
 			};
