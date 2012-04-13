@@ -52,5 +52,6 @@ dcpu16.js uses test cases from [krasin](https://github.com/krasin/dcpu16-tests).
 Base64 encoding has been borrowed from [Stuk's jszip](https://github.com/Stuk/jszip).
 
 Other projects/libraries used:
- * [jQuery](http://www.jquery.com)
- * [Ace](http://ace.ajax.org/)
+* [jQuery](http://www.jquery.com)
+* [Ace](http://ace.ajax.org/)
+* [PEG.js](https://github.com/dmajda/pegjs)
