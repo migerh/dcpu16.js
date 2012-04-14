@@ -644,6 +644,19 @@ var DCPU16 = (function () {
 				}
 			};
 			
+			this.pressKey = (function () {
+				var offset = 0,
+					bufferBase = 0x9000,
+					bufferPoint = 0x9010;
+				
+				return function (key) {
+					offset = (offset + 1) % 16;
+					
+					this.ram[bufferBase + offset] = key & 0x7f;
+					this.ram[bufferPoint] = bufferBase + offset;
+				};
+			})();
+			
 			this.load = function (rom, where) {
 				var i = 0;
 				
@@ -719,7 +732,7 @@ var DCPU16 = (function () {
 
 				// fail silently
 				// BUT NOT FOR CONDITIONS, STUPID!!!
-				if ((op > 0 && op < 0xc) && (!addrA || this.skipNext)) {
+				if (((op > 0 && op < 0xc) && !addrA) || this.skipNext) {
 					this.skipNext = false;
 					return;
 				}

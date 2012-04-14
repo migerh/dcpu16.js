@@ -208,6 +208,17 @@
 			});
 		});
 		
+		$(document).on('keyup', function (e) {
+			var code = e.keyCode || e.which,
+				remap = {
+					13: 10
+				};
+			
+			if (assembly) {
+				PC.pressKey(remap[code] || code);
+			}
+		});
+		
 		document.addEventListener('dragover', function (e) {
 			e.stopPropagation();
 			e.preventDefault();
