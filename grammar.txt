@@ -1,3 +1,4 @@
+
 /*
  * Classic example grammar, which recognizes simple arithmetic expressions like
  * "2*(3+4)". The parser generated from this grammar then computes their value.
@@ -10,6 +11,7 @@
 {
   var line = 1;
   var tmp;
+  var i;
 }
 
 start
@@ -121,26 +123,48 @@ param "parameter"
     }
 
 additive
-  = left:multiplicative ws "+" ws right:additive
+  = left:multiplicative ws right:(("+" / "-") ws multiplicative)*
     {
-      return {
+      tmp = {
         isExpression: true,
-        op: 'add',
-        children: [left, right]
+        op: "add",
+        ops: [],
+        children: [left]
       };
+      
+      for (i = 0; i < right.length; i++) {
+        tmp.ops.push(right[i][0]);
+        tmp.children.push(right[i][2]);
+      }
+
+      if (right.length === 0) {
+        tmp = left;
+      }
+
+      return tmp;
     }
-  / multiplicative
 
 multiplicative
-  = left:value ws "*" ws right:multiplicative
+  = left:value ws right:(("*" / "/") ws value)*
     {
-      return {
+      tmp = {
         isExpression: true,
         op: 'mul',
-        children: [left, right]
+        ops: [],
+        children: [left]
       };
+
+      for (i = 0; i < right.length; i++) {
+        tmp.ops.push(right[i][0]);
+        tmp.children.push(right[i][2]);
+      }
+
+      if (right.length === 0) {
+        tmp = left;
+      }
+
+      return tmp;
     }
-  / value
 
 value
   = v:number

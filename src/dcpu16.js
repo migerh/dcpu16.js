@@ -66,14 +66,22 @@ var DCPU16 = (function () {
 			return str;
 		},
 		
-		add: function (a, b) {
+		'+': function (a, b) {
 			return a+b;
 		},
 		
-		mul: function (a, b) {
+		'-': function (a, b) {
+			return a-b;
+		},
+
+		'*': function (a, b) {
 			return a*b;
 		},
 		
+		'/': function (a, b) {
+			return Math.floor(a/b);
+		},
+
 		printHex: function (v, w) {
 			// TODO FIXME
 			if (typeof v == 'undefined') {
@@ -172,7 +180,7 @@ var DCPU16 = (function () {
 				},
 				evaluateExpression = function (expression, line) {
 					var i, values = [], registers = [], w, op, value;
-					
+
 					for (i = 0; i < expression.children.length; i++) {
 						if (expression.children[i].isNumber) {
 							values.push(expression.children[i].value);
@@ -203,18 +211,19 @@ var DCPU16 = (function () {
 					
 					if (expression.op === 'mul') {
 						if (registers.lenth > 0) {
-							throw new ParserError('Register must not be involved in multiplications', line);
+							throw new ParserError('Register must not be involved in a multiplication or division', line);
 						}
-						op = _.mul;
-					} else if (expression.op === 'add') {
-						op = _.add;
-					} else {
+					} else if (expression.op !== 'add') {
 							throw new ParserError('Unknown operand "' + expression.op + '"', line);
 					}
 					
 					value = values[0];
 					for (i = 1; i < values.length; i++) {
-						value = op(value, values[i]);
+						if (_[expression.ops[i - 1]]) {
+							value = _[expression.ops[i - 1]](value, values[i]);
+						} else {
+							throw new ParserError('Unknown operand "' + expression.ops[i - 1] + '"', line);
+						}
 					}
 
 					return [value, registers[0]];
