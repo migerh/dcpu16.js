@@ -73,7 +73,7 @@
 			} catch (e) {
 				editor.getSession().removeMarker(marker);
 				assembly = null;
-				PC.clear();
+				console.log(e);
 				editor.getSession().setAnnotations([{
 					row: e.line-1,
 					column: 0,
@@ -114,29 +114,30 @@
 			if (new Date().getTime() - lastUpdate > 50) {
 				if (!PC.isRunning) {
 					markLine(assembly.meta.addr2line[PC.ram.PC]);
-				}
-				out.push('A  = ' + printValue(PC.ram.A) + '    ');
-				out.push('B  = ' + printValue(PC.ram.B) + '<br />');
-				out.push('C  = ' + printValue(PC.ram.C) + '    ');
-				out.push('X  = ' + printValue(PC.ram.X) + '<br />');
-				out.push('Y  = ' + printValue(PC.ram.Y) + '    ');
-				out.push('Z  = ' + printValue(PC.ram.Z) + '<br />');
-				out.push('I  = ' + printValue(PC.ram.I) + '    ');
-				out.push('J  = ' + printValue(PC.ram.J) + '<br /><br />');
 
-				out.push('PC = ' + printValue(PC.ram.PC) + '    ');
-				out.push('SP = ' + printValue(PC.ram.SP) + '<br />');
-				out.push('O  = ' + printValue(PC.ram.O) + '<br /><br />');
-				out.push('Stack: <br />');
-				if (PC.ram.SP > 0xFF00) {
-					for (i = PC.ram.SP; i < 0x10000; i++ ) {
-						out.push('[' + printValue(PC.getWord(i)) + ']<br />');
+					out.push('A  = ' + printValue(PC.ram.A) + '    ');
+					out.push('B  = ' + printValue(PC.ram.B) + '<br />');
+					out.push('C  = ' + printValue(PC.ram.C) + '    ');
+					out.push('X  = ' + printValue(PC.ram.X) + '<br />');
+					out.push('Y  = ' + printValue(PC.ram.Y) + '    ');
+					out.push('Z  = ' + printValue(PC.ram.Z) + '<br />');
+					out.push('I  = ' + printValue(PC.ram.I) + '    ');
+					out.push('J  = ' + printValue(PC.ram.J) + '<br /><br />');
+
+					out.push('PC = ' + printValue(PC.ram.PC) + '    ');
+					out.push('SP = ' + printValue(PC.ram.SP) + '<br />');
+					out.push('O  = ' + printValue(PC.ram.O) + '<br /><br />');
+					out.push('Stack: <br />');
+					if (PC.ram.SP > 0xFF00) {
+						for (i = PC.ram.SP; i < 0x10000; i++ ) {
+							out.push('[' + printValue(PC.getWord(i)) + ']<br />');
+						}
 					}
-				}
 			
-				$('#status').html(out.join(''));
+					$('#status').html(out.join(''));
 				
-				gotoRam();
+					gotoRam();
+				}
 				PC.renderScreen(canvas);
 
 				lastUpdate = new Date().getTime();
@@ -272,13 +273,73 @@
 			}
         }, false);
 		
-		load('example-breaking');
+		load('example-features');
 		editor.getSession().on('change', asm);
 		asm();
 	};
 </script>
 
 <!-- examples -->
+
+		<script type="text/dcpu-asm" id="example-features">
+; If there is only a comment in the first line, make sure there are no whitespaces before.
+; This is a known issue: https://github.com/migerh/dcpu16.js/issues/6
+
+	; Macros can be used.
+	; Labels inside macros are not resolved properly yet.
+	#macro push(value) {
+		SET PUSH, value
+	}
+
+	; Everything from the specification should work
+	; http://0x10c.com/doc/dcpu-16.txt
+	SET A, 0x30
+	
+	; Use a macro
+	push(0xDEAD)
+	
+	; Simple expressions are resolved: +,-,*,/ and brackets are allowed.
+	; Expressions are not shortened.
+	SET [0x1000], (9+7)*2
+	
+	; There can be a register involved
+	SUB a, [0x2000/2+I]
+	
+	; Mnemonics and registers are case insensitive.
+	; Labels and macros are case sensitive.
+	IfN a, 0x10
+		SET Pc, crash
+                      
+	; Do a loopy thing
+	SET I, 10
+	
+	; Values can be labeled. Labeled values are not shortened but there will
+	; be some kind of assembler directive
+	SET A, :valuelabel 0x2000
+:loop
+	SET [0x2000+I], [A]
+	SUB I, 1
+	IFN I, 0
+	SET PC, loop
+        
+	; Call a subroutine
+	SET X, 0x4
+	JSR testsub
+	SET PC, crash
+        
+:testsub
+	SHL X, 4
+	SET PC, POP
+                        
+	; Hang forever. X should now be 0x40 if everything went right.
+:crash
+	SET PC, crash
+    
+    ; DAT is supported, too.
+    ; You can use labels, numbers, expressions, and string literals here.
+:data
+	dat 0x170, "Hello, World!", 0x65, 73, "w0,,0t!", valuelabel, 0xDEAD+20
+		</script>
 
 		<script type="text/dcpu-asm" id="example-1">
 		        ; Try some basic stuff

@@ -123,7 +123,7 @@ param "parameter"
     }
 
 additive
-  = left:multiplicative ws right:(("+" / "-") ws multiplicative)*
+  = left:multiplicative ws right:(("+" / "-") ws multiplicative ws)*
     {
       tmp = {
         isExpression: true,
@@ -145,7 +145,7 @@ additive
     }
 
 multiplicative
-  = left:value ws right:(("*" / "/") ws value)*
+  = left:value ws right:(("*" / "/") ws value ws)*
     {
       tmp = {
         isExpression: true,

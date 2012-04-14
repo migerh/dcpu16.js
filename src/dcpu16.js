@@ -324,16 +324,16 @@ var DCPU16 = (function () {
 						if (w.params) {
 							for (j = 0; j < w.params.length; j++) {
 								if (w.params[j].isExpression) {
-									// currently only simple add expressions with 2 summands
+									// TODO this has changed: currently only simple add expressions with 2 summands
 									for (k = 0; k < 2; k++) {
 										if (w.params[j].children[k].value === parameter) {
-											w.params[j].children[k].value = value;
+											w.params[j].children[k] = value;
 										}
 									}
 								}
 								
 								if (w.params[j].value === parameter) {
-									w.params[j].value = value;
+									w.params[j] = value;
 								}
 							}
 						}
@@ -388,6 +388,8 @@ var DCPU16 = (function () {
 										}
 									} else if (w.isString) {
 										pushLabel(w.value, 0);
+									} else if (w.isExpression) {
+										pushExpression(w, 0, false);
 									} else {
 										throw new ParserError('Unknown DAT value "' + JSON.stringify(w) + '"', line);
 									}
@@ -437,8 +439,8 @@ var DCPU16 = (function () {
 								if (!node.params[j] || !node.params[j].value) {
 									throw new ParserError('Not enough parameters given', line);
 								}
-								
-								w = replaceValueStrings(w, macro.params[j].value, node.params[j].value);
+
+								w = replaceValueStrings(w, macro.params[j].value, node.params[j]);
 							}
 							
 							parseTokens(w, false);
@@ -786,13 +788,17 @@ var DCPU16 = (function () {
 					r = this.getWord(this.ram.PC++) + this.getWord(_.registers_rev[val - 0x10]);
 				} else if (val == 0x18) {
 					r = this.ram.SP;
-					this.ram.SP = (this.ram.SP + 1) & this.maxWord;
+					if (!this.skipNext) {
+						this.ram.SP = (this.ram.SP + 1) & this.maxWord;
+					}
 				} else if (val == 0x19) {
 					r = this.ram.SP;
 				} else if (val == 0x1a) {
-					this.ram.SP -= 1;
-					if (this.ram.SP < 0) {
-						this.ram.SP = this.maxWord;
+					if (!this.skipNext) {
+						this.ram.SP -= 1;
+						if (this.ram.SP < 0) {
+							this.ram.SP = this.maxWord;
+						}
 					}
 					r = this.ram.SP;
 				} else if (val >= 0x1b && val <= 0x1d) {

@@ -99,6 +99,23 @@ TestCase("Conditions", {
 		
 		assertEquals('no bits', 0x1000, this.cpu.ram.X);
 		assertEquals('one bit', 0xBEEF, this.cpu.ram.Y);
+	},
+	
+	testIfeAndStack: function () {
+		expectAsserts(1);
+
+		var src =
+			'SET X, 0\n' +
+			'JSR addr\n' +
+			':addr IFE X, 1\n' +
+			'SET PC, POP\n' +
+
+			':halt SET PC, halt';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('stack altered', 0xFFFF, this.cpu.ram.SP);
 	}
 
 });

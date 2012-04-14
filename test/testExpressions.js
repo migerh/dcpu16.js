@@ -97,6 +97,20 @@ TestCase("Expressions", {
 		
 		assertEquals('pemdas bracket', 6, this.cpu.ram.X);
 		assertEquals('pemdas', 4, this.cpu.ram.Y);
+	},
+
+	testWhitespaces: function () {
+		expectAsserts(1);
+
+		var src =
+			'SET X, 0x8000 + 32 * 2 + 2\n'
+			
+			':halt SET PC, halt';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('whitespaces', 32834, this.cpu.ram.X);
 	}
 	
 });

@@ -1008,28 +1008,28 @@ DCPU16.Parser = (function(){
             var result5 = [];
             var savedPos2 = pos;
             if (input.substr(pos, 1) === "+") {
-              var result11 = "+";
+              var result12 = "+";
               pos += 1;
             } else {
-              var result11 = null;
+              var result12 = null;
               if (reportMatchFailures) {
                 matchFailed("\"+\"");
               }
             }
-            if (result11 !== null) {
-              var result7 = result11;
+            if (result12 !== null) {
+              var result7 = result12;
             } else {
               if (input.substr(pos, 1) === "-") {
-                var result10 = "-";
+                var result11 = "-";
                 pos += 1;
               } else {
-                var result10 = null;
+                var result11 = null;
                 if (reportMatchFailures) {
                   matchFailed("\"-\"");
                 }
               }
-              if (result10 !== null) {
-                var result7 = result10;
+              if (result11 !== null) {
+                var result7 = result11;
               } else {
                 var result7 = null;;
               };
@@ -1039,7 +1039,13 @@ DCPU16.Parser = (function(){
               if (result8 !== null) {
                 var result9 = parse_multiplicative();
                 if (result9 !== null) {
-                  var result6 = [result7, result8, result9];
+                  var result10 = parse_ws();
+                  if (result10 !== null) {
+                    var result6 = [result7, result8, result9, result10];
+                  } else {
+                    var result6 = null;
+                    pos = savedPos2;
+                  }
                 } else {
                   var result6 = null;
                   pos = savedPos2;
@@ -1056,28 +1062,28 @@ DCPU16.Parser = (function(){
               result5.push(result6);
               var savedPos2 = pos;
               if (input.substr(pos, 1) === "+") {
-                var result11 = "+";
+                var result12 = "+";
                 pos += 1;
               } else {
-                var result11 = null;
+                var result12 = null;
                 if (reportMatchFailures) {
                   matchFailed("\"+\"");
                 }
               }
-              if (result11 !== null) {
-                var result7 = result11;
+              if (result12 !== null) {
+                var result7 = result12;
               } else {
                 if (input.substr(pos, 1) === "-") {
-                  var result10 = "-";
+                  var result11 = "-";
                   pos += 1;
                 } else {
-                  var result10 = null;
+                  var result11 = null;
                   if (reportMatchFailures) {
                     matchFailed("\"-\"");
                   }
                 }
-                if (result10 !== null) {
-                  var result7 = result10;
+                if (result11 !== null) {
+                  var result7 = result11;
                 } else {
                   var result7 = null;;
                 };
@@ -1087,7 +1093,13 @@ DCPU16.Parser = (function(){
                 if (result8 !== null) {
                   var result9 = parse_multiplicative();
                   if (result9 !== null) {
-                    var result6 = [result7, result8, result9];
+                    var result10 = parse_ws();
+                    if (result10 !== null) {
+                      var result6 = [result7, result8, result9, result10];
+                    } else {
+                      var result6 = null;
+                      pos = savedPos2;
+                    }
                   } else {
                     var result6 = null;
                     pos = savedPos2;
@@ -1170,28 +1182,28 @@ DCPU16.Parser = (function(){
             var result5 = [];
             var savedPos2 = pos;
             if (input.substr(pos, 1) === "*") {
-              var result11 = "*";
+              var result12 = "*";
               pos += 1;
             } else {
-              var result11 = null;
+              var result12 = null;
               if (reportMatchFailures) {
                 matchFailed("\"*\"");
               }
             }
-            if (result11 !== null) {
-              var result7 = result11;
+            if (result12 !== null) {
+              var result7 = result12;
             } else {
               if (input.substr(pos, 1) === "/") {
-                var result10 = "/";
+                var result11 = "/";
                 pos += 1;
               } else {
-                var result10 = null;
+                var result11 = null;
                 if (reportMatchFailures) {
                   matchFailed("\"/\"");
                 }
               }
-              if (result10 !== null) {
-                var result7 = result10;
+              if (result11 !== null) {
+                var result7 = result11;
               } else {
                 var result7 = null;;
               };
@@ -1201,7 +1213,13 @@ DCPU16.Parser = (function(){
               if (result8 !== null) {
                 var result9 = parse_value();
                 if (result9 !== null) {
-                  var result6 = [result7, result8, result9];
+                  var result10 = parse_ws();
+                  if (result10 !== null) {
+                    var result6 = [result7, result8, result9, result10];
+                  } else {
+                    var result6 = null;
+                    pos = savedPos2;
+                  }
                 } else {
                   var result6 = null;
                   pos = savedPos2;
@@ -1218,28 +1236,28 @@ DCPU16.Parser = (function(){
               result5.push(result6);
               var savedPos2 = pos;
               if (input.substr(pos, 1) === "*") {
-                var result11 = "*";
+                var result12 = "*";
                 pos += 1;
               } else {
-                var result11 = null;
+                var result12 = null;
                 if (reportMatchFailures) {
                   matchFailed("\"*\"");
                 }
               }
-              if (result11 !== null) {
-                var result7 = result11;
+              if (result12 !== null) {
+                var result7 = result12;
               } else {
                 if (input.substr(pos, 1) === "/") {
-                  var result10 = "/";
+                  var result11 = "/";
                   pos += 1;
                 } else {
-                  var result10 = null;
+                  var result11 = null;
                   if (reportMatchFailures) {
                     matchFailed("\"/\"");
                   }
                 }
-                if (result10 !== null) {
-                  var result7 = result10;
+                if (result11 !== null) {
+                  var result7 = result11;
                 } else {
                   var result7 = null;;
                 };
@@ -1249,7 +1267,13 @@ DCPU16.Parser = (function(){
                 if (result8 !== null) {
                   var result9 = parse_value();
                   if (result9 !== null) {
-                    var result6 = [result7, result8, result9];
+                    var result10 = parse_ws();
+                    if (result10 !== null) {
+                      var result6 = [result7, result8, result9, result10];
+                    } else {
+                      var result6 = null;
+                      pos = savedPos2;
+                    }
                   } else {
                     var result6 = null;
                     pos = savedPos2;
