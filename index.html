@@ -191,6 +191,15 @@
 		//$('#src').css('font-size', '14px');
 		
 		canvas = document.getElementById('out').getContext('2d');
+		
+		editor.getSession().selection.on('changeCursor', function (e) {
+			if (!assembly) {
+				return;
+			}
+			
+			$('.ram-word').css('background-color', 'white');
+			$('#ram-word-' + assembly.meta.line2addr[editor.getSession().getSelection().getCursor().row+1]).css('background-color', 'pink');
+		});
 
 		$('#src > div.ace_gutter').on('click', function (e) {
 			var line = $(e.toElement),
