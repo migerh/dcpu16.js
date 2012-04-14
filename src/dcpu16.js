@@ -737,10 +737,10 @@ var DCPU16 = (function () {
 					bufferPoint = 0x9010;
 				
 				return function (key) {
-					offset = (offset + 1) % 16;
-					
 					this.ram[bufferBase + offset] = key & 0x7f;
 					this.ram[bufferPoint] = bufferBase + offset;
+					
+					offset = (offset + 1) % 16;
 				};
 			})();
 			
