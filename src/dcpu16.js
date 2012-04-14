@@ -479,7 +479,7 @@ var DCPU16 = (function () {
 					throw new ParserError('Registers are not allowed in this expression', t);
 				}
 				
-				bc[expr[i].pc] = u[0];
+				bc[expr[i].pc] = u[0] & _.maxWord;
 
 				if (typeof u[1] !== 'undefined') {
 					t = 0xf | (0x3f << ((1 - expr[i].par) * 6 + 4));
@@ -785,7 +785,7 @@ var DCPU16 = (function () {
 				} else if (val >= 0x8 && val < 0x10) {
 					r = this.getWord(_.registers_rev[val - 8]);
 				} else if (val >= 0x10 && val < 0x18) {
-					r = this.getWord(this.ram.PC++) + this.getWord(_.registers_rev[val - 0x10]);
+					r = (this.getWord(this.ram.PC++) + this.getWord(_.registers_rev[val - 0x10])) & this.maxWord;
 				} else if (val == 0x18) {
 					r = this.ram.SP;
 					if (!this.skipNext) {
