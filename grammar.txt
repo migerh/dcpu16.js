@@ -115,23 +115,32 @@ param "parameter"
       v.hasBrackets = true;
       return v;
     }
-  / v:value
+  / v:additive
     {
       return v;
     }
 
 additive
-  = left:value "+" right:additive
+  = left:multiplicative ws "+" ws right:additive
     {
       return {
         isExpression: true,
+        op: 'add',
         children: [left, right]
       };
     }
-  / v:value
+  / multiplicative
+
+multiplicative
+  = left:value ws "*" ws right:multiplicative
     {
-      return v;
+      return {
+        isExpression: true,
+        op: 'mul',
+        children: [left, right]
+      };
     }
+  / value
 
 value
   = v:number
@@ -155,6 +164,8 @@ value
         isStringLiteral: true
       };
     }
+  / "(" ws v:additive ws ")"
+    { return v; }
 
 
 number "number"

@@ -46,6 +46,8 @@ var DCPU16 = (function () {
 		parseInt: function (str) {
 			var r;
 			
+			str = _.trim(str);
+			
 			if (str.match(/^0x/)) {
 				r = parseInt(str, 16);
 			} else if (str[0] === '0') {
@@ -55,6 +57,21 @@ var DCPU16 = (function () {
 			}
 			
 			return r;
+		},
+		
+		trim: function (str) {
+			str = str.replace(/^\s+/, "");
+			str = str.replace(/\s+$/, "");
+
+			return str;
+		},
+		
+		add: function (a, b) {
+			return a+b;
+		},
+		
+		mul: function (a, b) {
+			return a*b;
 		},
 		
 		printHex: function (v, w) {
@@ -119,8 +136,8 @@ var DCPU16 = (function () {
 		asm: function (src, options) {
 			var tokens,
 				bc = [], rom = [],
-				labels = {}, resolve = [], macros = {},
-				pc = 0, op, oppc, i,
+				labels = {}, resolve = [], expr = [], macros = {},
+				pc = 0, op, oppc, i, t, u,
 				
 				meta = {
 					addr2line: {},
@@ -141,6 +158,66 @@ var DCPU16 = (function () {
 					});
 					bc.push(0);
 					pc++;
+				},
+				pushExpression = function (expression, storage, register) {
+					expr.push({
+						expression: expression,
+						oppc: oppc,
+						pc: pc,
+						par: storage,
+						register: register
+					});
+					bc.push(0);
+					pc++;
+				},
+				evaluateExpression = function (expression, line) {
+					var i, values = [], registers = [], w, op, value;
+					
+					for (i = 0; i < expression.children.length; i++) {
+						if (expression.children[i].isNumber) {
+							values.push(expression.children[i].value);
+						} else if (expression.children[i].isString) {
+							if (_.registers[expression.children[i].value] >= 0) {
+								registers.push(_.registers[expression.children[i].value]);
+							} else if (labels[expression.children[i].value] >= 0) {
+								values.push(labels[expression.children[i].value]);
+							} else {
+								throw new ParserError('Unresolved label "' + expression.children[i].value + '"', line);
+							}
+						} else if (expression.children[i].isExpression) {
+							w = evaluateExpression(expression.children[i]);
+							if (w[0]) {
+								values.push(w[0]);
+							}
+							if (w[1]) {
+								registers.push(w[1]);
+							}
+						} else {
+							throw new ParserError('Unexpected value "' + expression.children[i].value + '" inside expression', line);
+						}
+					}
+
+					if (registers.length > 1) {
+						throw new ParserError('Only one register is allowed in one expression, you gave ' + registers.length, line);
+					}
+					
+					if (expression.op === 'mul') {
+						if (registers.lenth > 0) {
+							throw new ParserError('Register must not be involved in multiplications', line);
+						}
+						op = _.mul;
+					} else if (expression.op === 'add') {
+						op = _.add;
+					} else {
+							throw new ParserError('Unknown operand "' + expression.op + '"', line);
+					}
+					
+					value = values[0];
+					for (i = 1; i < values.length; i++) {
+						value = op(value, values[i]);
+					}
+
+					return [value, registers[0]];
 				},
 				handleParameter = function (data, storage, line) {
 					// this function changes the local variables op and inc
@@ -175,33 +252,8 @@ var DCPU16 = (function () {
 							push(data.value);
 							value = 0x1e;
 						} else if (data.isExpression) {
-							// allow only addition of exactly two summands for now
-							if (!data.children[0].isExpression && !data.children[1].isExpression) {
-								if (data.children[0].isString && _.registers[data.children[0].value.toUpperCase()] >= 0) {
-									reg = data.children[0];
-									addr = data.children[1];
-								} else if (data.children[1].isString && _.registers[data.children[1].value.toUpperCase()] >= 0) {
-									reg = data.children[1];
-									addr = data.children[0];
-								} else {
-									throw new ParserError('Expected a register', line);
-								}
-
-								if (addr.isString && _.registers[addr.value.toUpperCase()] >= 0) {
-									throw new ParserError('Expected number or label reference', line);
-								}
-								
-								value = _.registers[reg.value.toUpperCase()] + 0x10;
-								if (addr.isString) {
-									pushLabel(addr.value, storage);
-								} else if (addr.isNumber) {
-									push(addr.value);
-								} else {
-									throw new ParserError('can this case even occur?', line);
-								}
-							} else {
-								throw new ParserError('Expressions with more than one summand are not supported', line);
-							}
+							pushExpression(data, storage, true);
+							value = 0x1e;
 						} else {
 							throw new ParserError('Invalid parameter "' + JSON.stringify(data) + '"', line);
 						}
@@ -240,6 +292,9 @@ var DCPU16 = (function () {
 								push(data.value);
 								value = 0x1f;
 							}
+						} else if (data.isExpression) {
+							pushExpression(data, storage, false);
+							value = 0x1f;
 						} else {
 							throw new ParserError('Invalid parameter "' + JSON.stringify(data) + '"', line);
 						}
@@ -399,12 +454,33 @@ var DCPU16 = (function () {
 			for (i = 0; i < resolve.length; i++) {
 				bc[resolve[i].pc] = labels[resolve[i].label];
 			}
+
+			for (i = 0; i < expr.length; i++) {
+				t = meta.addr2line[expr[i].oppc];
+				
+				try {
+					u = evaluateExpression(expr[i].expression, t);
+				} catch (e) {
+					throw new ParserError(e.message, t);
+				}
+
+				if (!expr[i].register && typeof u[1] !== 'undefined') {
+					throw new ParserError('Registers are not allowed in this expression', t);
+				}
+				
+				bc[expr[i].pc] = u[0];
+
+				if (typeof u[1] !== 'undefined') {
+					t = 0xf | (0x3f << ((1 - expr[i].par) * 6 + 4));
+					bc[expr[i].oppc] = (bc[expr[i].oppc] & t) | ((u[1] + 0x10) << (expr[i].par * 6 + 4));
+				}
+			}
 			
 			for (i = 0; i < bc.length; i++) {
 				rom.push(bc[i] & 0xff);
 				rom.push((bc[i] >> 8) & 0xff);
 			}
-		    
+
 			return {
 				src: src,
 				bc: rom,
