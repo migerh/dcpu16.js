@@ -23,8 +23,9 @@ and the entry point in *entry*.
 
 Please note that lines without a corresponding address (and vice versa) are undefined.
 
-	var PC = new DCPU16.PC();
+	var PC = new DCPU16.PC([canvas], [rom]);
 Initializes a new DCPU16 PC.
+Optional parameter: Required for screen output.
 Optional parameter: An array of bytes.
 
 	PC.load(rom);
@@ -41,10 +42,6 @@ Access the ram. The registers and flags (A, B, C, X, Y, Z, I, J, SP, PC, O) can
 be accessed as properties of the ram:
 
 	var valueOfRegisterA = PC.ram.A;
-
-To render the content of the screen buffer use
-	PC.renderScreen(canvas);
-where *canvas* is a canvas context.
 
 Acknowledgements
 ================

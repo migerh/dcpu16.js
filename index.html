@@ -56,8 +56,7 @@
 		},
 		newPC = function () {
 			if (assembly) {
-				PC = new DCPU16.PC(assembly.bc);
-				PC.on('update', printStatus, this);
+				PC = new DCPU16.PC(canvas, assembly.bc);
 				printStatus();
 			}
 		},
@@ -73,26 +72,28 @@
 			} catch (e) {
 				editor.getSession().removeMarker(marker);
 				assembly = null;
-				console.log(e);
+				//console.log(e, e.stack);
 				editor.getSession().setAnnotations([{
 					row: e.line-1,
 					column: 0,
 					text: e.toString(),
 					type: 'error'
 				}]);
+				editor.gotoLine(e.line-1);
 			}
 			
 			editor.moveCursorToPosition(cursor);
 		},
 		step = function () {
 			PC.step();
+			printStatus();
 		},
 		start = function () {
 			PC.start();
+			printStatus(true);
 		},
 		stop = function () {
 			PC.stop();
-			setTimeout(printStatus, 30);
 		},
 		_clear = function () {
 			newPC();
@@ -107,41 +108,43 @@
 				
 			return r;
 		},
-		printStatus = function (force) {
+		printStatus = function (timeout) {
 			var out = [];
-
-			// 20 fps			
-			if (new Date().getTime() - lastUpdate > 50 || force) {
-				if (!PC.isRunning || force) {
-					markLine(assembly.meta.addr2line[PC.ram.PC]);
-
-					out.push('A  = ' + printValue(PC.ram.A) + '    ');
-					out.push('B  = ' + printValue(PC.ram.B) + '<br />');
-					out.push('C  = ' + printValue(PC.ram.C) + '    ');
-					out.push('X  = ' + printValue(PC.ram.X) + '<br />');
-					out.push('Y  = ' + printValue(PC.ram.Y) + '    ');
-					out.push('Z  = ' + printValue(PC.ram.Z) + '<br />');
-					out.push('I  = ' + printValue(PC.ram.I) + '    ');
-					out.push('J  = ' + printValue(PC.ram.J) + '<br /><br />');
-
-					out.push('PC = ' + printValue(PC.ram.PC) + '    ');
-					out.push('SP = ' + printValue(PC.ram.SP) + '<br />');
-					out.push('O  = ' + printValue(PC.ram.O) + '<br /><br />');
-					out.push('Stack: <br />');
-					if (PC.ram.SP > 0xFF00) {
-						for (i = PC.ram.SP; i < 0x10000; i++ ) {
-							out.push('[' + printValue(PC.getWord(i)) + ']<br />');
-						}
-					}
 			
-					$('#status').html(out.join(''));
-				
-					gotoRam();
-				}
-				PC.renderScreen(canvas);
-
-				lastUpdate = new Date().getTime();
+			if (!PC) {
+				return;
 			}
+
+			markLine(assembly.meta.addr2line[PC.ram.PC]);
+			out.push('A  = ' + printValue(PC.ram.A) + '    ');
+			out.push('B  = ' + printValue(PC.ram.B) + '<br />');
+			out.push('C  = ' + printValue(PC.ram.C) + '    ');
+			out.push('X  = ' + printValue(PC.ram.X) + '<br />');
+			out.push('Y  = ' + printValue(PC.ram.Y) + '    ');
+			out.push('Z  = ' + printValue(PC.ram.Z) + '<br />');
+			out.push('I  = ' + printValue(PC.ram.I) + '    ');
+			out.push('J  = ' + printValue(PC.ram.J) + '<br /><br />');
+
+			out.push('PC = ' + printValue(PC.ram.PC) + '    ');
+			out.push('SP = ' + printValue(PC.ram.SP) + '<br />');
+			out.push('O  = ' + printValue(PC.ram.O) + '<br /><br />');
+			out.push('Stack: <br />');
+			if (PC.ram.SP > 0xFF00) {
+				for (i = PC.ram.SP; i < 0x10000; i++ ) {
+					out.push('[' + printValue(PC.getWord(i)) + ']<br />');
+				}
+			}
+			
+			$('#status').html(out.join(''));
+				
+			gotoRam();
+			
+			if (timeout && PC.isRunning) {
+				setTimeout(function () {
+					printStatus(true)
+				}, 500);
+			}
+
 		},
 		printRam = function (offset) {
 			var i, ram = [];

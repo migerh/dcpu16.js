@@ -10,6 +10,13 @@ var DCPU16 = (function () {
 		ramSize: 0x10000,
 		wordSize: 2,
 		
+		charBuffer: 0x9000,
+		charPointer: 0x9010,
+		screenBase: 0x8000,
+		screenSize: 0x180,
+		charMapBase: 0x8180,
+		charMapSize: 0x100,
+		
 		useDebug: false,
 		
 		debug: function () {
@@ -185,8 +192,8 @@ var DCPU16 = (function () {
 						if (expression.children[i].isNumber) {
 							values.push(expression.children[i].value);
 						} else if (expression.children[i].isString) {
-							if (_.registers[expression.children[i].value] >= 0) {
-								registers.push(_.registers[expression.children[i].value]);
+							if (_.registers[expression.children[i].value.toUpperCase()] >= 0) {
+								registers.push(_.registers[expression.children[i].value.toUpperCase()]);
 							} else if (labels[expression.children[i].value] >= 0) {
 								values.push(labels[expression.children[i].value]);
 							} else {
@@ -639,7 +646,7 @@ var DCPU16 = (function () {
 		},
 		
 		// emulator
-		PC: function (rom) {
+		PC: function (canvas, rom) {
 			this.ramSize = _.ramSize;
 			this.wordSize = _.wordSize;
 			this.maxWord = _.maxWord;
@@ -647,8 +654,14 @@ var DCPU16 = (function () {
 			this.isRunning = false;
 			this.stepCount = 0;
 			
+			this.screen = canvas;
+			
 			this.events = {};
 			this.breakpoints = {};
+			
+			// hacky stuff
+			this.charMapBuffer = [];
+			this.screenBuffer = [];
 			
 			this.on = function (event, handler, scope) {
 				this.events[event] = this.events[event] || [];
@@ -704,7 +717,7 @@ var DCPU16 = (function () {
 			};
 			
 			this.defaultCharMap = function () {
-				var charMap = 0x8180, charMapSize = 0x100, i,
+				var i,
 					dcm = [/* for the elegant version: charMap, charMapSize, */
 							0x000F,0x0808,0x080F,0x0808,0x08F8,0x0808,0x00FF,0x0808,0x0808,0x0808,0x08FF,0x0808,0x00FF,0x1414,0xFF00,0xFF08,
 							0x1F10,0x1714,0xFC04,0xF414,0x1710,0x1714,0xF404,0xF414,0xFF00,0xF714,0x1414,0x1414,0xF700,0xF714,0x1417,0x1414,
@@ -725,20 +738,18 @@ var DCPU16 = (function () {
 							
 				// clever version: this.ram.splice.apply(this, dcm);
 				// unfortunately this doesn't work because ram is uninitalized :/
-				// brute force ugly "solution:
-				for (i = 0; i < charMapSize; i++) {
-					this.ram[charMap + i] = dcm[i];
+				// brute force ugly "solution":
+				for (i = 1; i < _.charMapSize; i++) {
+					this.setWord(_.charMapBase + i, dcm[i]);
 				}
 			};
 			
 			this.pressKey = (function () {
-				var offset = 0,
-					bufferBase = 0x9000,
-					bufferPoint = 0x9010;
+				var offset = 0;
 				
 				return function (key) {
-					this.ram[bufferBase + offset] = key & 0x7f;
-					this.ram[bufferPoint] = bufferBase + offset;
+					this.ram[_.charBuffer + offset] = key & 0x7f;
+					this.ram[_.charPointer] = _.charBuffer + offset;
 					
 					offset = (offset + 1) % 16;
 				};
@@ -757,6 +768,15 @@ var DCPU16 = (function () {
 			
 			this.setWord = function (ptr, val) {
 				this.ram[ptr] = val & this.maxWord;
+				
+				// triger screen update
+				if (ptr >= _.screenBase && ptr < _.screenBase + _.screenSize) {
+					this.updateScreen(ptr);
+				}
+				
+				if (ptr >= _.charMapBase && ptr < _.charMapBase + _.charMapSize) {
+					this.updateTile(ptr);
+				}
 			};
 			
 			this.getWord = function (ptr) {
@@ -767,9 +787,9 @@ var DCPU16 = (function () {
 				var r;
 				
 				if (val < 0x1f) {
-					r = this.ram[this.getAddress(val)] || 0;
+					r = this.getWord(this.getAddress(val));
 				} else if (val == 0x1f) {
-					r = this.ram[this.ram.PC++];
+					r = this.getWord(this.ram.PC++);
 				} else if (val >= 0x20 && val < 0x40) {
 					r = val - 0x20;
 				}
@@ -1031,42 +1051,87 @@ var DCPU16 = (function () {
 				}
 			};
 			
-			this.renderScreen = function (canvas) {
-				var screenBase = 0x8000, screenSize = 0x180,
-					charMap = 0x8180, charMapSize = 0x100,
-					w = 512, h = 384, bh = 4, bw = 4, r = 0, c = 0,
-					color = 'f', bg, fg, blink = 0,
-					i, val;
+			this.getScreenCoords = function (pos) {
+				var c = pos % 32, r = Math.floor((pos - _.screenBase) / 32),
+					bw = 4, bh = 4;
 				
-				for (i = screenBase; i < screenBase + screenSize; i++) {
-					val = this.getWord(i);
+				c *= 4 * bw;
+				r *= 8 * bh;
+				
+				return [c, r];
+			};
+			
+			// update only necessary parts
+			this.updateScreen = function (pos) {
+				var val, color, bg, fg, blink = 0,
+					p = this.getScreenCoords(pos), c = p[0], r = p[1], bw = 4, bh = 4;
+					
+				if (!this.screen) {
+					return p;
+				}
 
-					color = (val & 0x800 ? 'f' : 'a');
-					bg = (((val >> 8) & 4) ? color : '0') +
-							(((val >> 8) & 2) ? color : '0') +
-							(((val >> 8) & 1) ? color : '0');
+				val = this.getWord(pos);
+
+				color = (val & 0x800 ? 'f' : 'a');
+				bg = (((val >> 8) & 4) ? color : '0') +
+						(((val >> 8) & 2) ? color : '0') +
+						(((val >> 8) & 1) ? color : '0');
 							
-					color = (val & 0x8000 ? 'f' : 'a');
-					fg = (((val >> 12) & 4) ? color : '0') +
-							(((val >> 12) & 2) ? color : '0') +
-							(((val >> 12) & 1) ? color : '0');
+				color = (val & 0x8000 ? 'f' : 'a');
+				fg = (((val >> 12) & 4) ? color : '0') +
+						(((val >> 12) & 2) ? color : '0') +
+						(((val >> 12) & 1) ? color : '0');
 					
-					this.drawCharacter(canvas,
-								this.getWord(charMap + 2 * (val & 0x7f)), this.getWord(charMap + 2 * (val & 0x7f) + 1),
-								bg, fg, blink,
-								c, r, bw, bh);
-					
-					if ((i + 1) % 32 === 0) {
-						c = 0;
-						r += 8*bh;
-					} else {
-						c += 4*bw;
+				this.drawCharacter(this.screen,
+							this.getWord(_.charMapBase + 2 * (val & 0x7f)), this.getWord(_.charMapBase + 2 * (val & 0x7f) + 1),
+							bg, fg, blink,
+							c, r, bw, bh);
+							
+				return [c, r];
+			};
+			
+			this.updateTile = function (tile) {
+				var index = tile - _.charMapBase,
+					chars = [], pos, id,
+					i;
+				
+				if (!this.screen) {
+					return;
+				}
+				
+				for (i = _.screenBase; i < _.screenBase + _.screenSize; i++) {
+					if ((this.getWord(i) & 0x7f) === index) {
+						//chars.push(i);
+						// see below
+						this.updateScreen(i);
 					}
+				}
+				
+				/*
+				if (chars.length > 0) {
+					pos = this.updateScreen(chars.shift());
+					// chrome throws an NOT_SUPPORTED_EXCEPTION 9
+					id = this.screen.getImageData(pos[0], pos[1], 16, 32);
+				}
+				
+				for (i = 0; i < chars.length; i++) {
+					pos = this.getScreenCoords(pos);
+					this.screen.putImageData(id, pos[0], pos[1]);
+				}*/
+			};
+			
+			// complete redraw
+			this.drawScreen = function () {
+				var i;
+
+				for (i = _.screenBase; i < _.screenBase + _.screenSize; i++) {
+					this.updateScreen(i);
 				}
 			};
 			
 			this.clear();
 			this.defaultCharMap();
+
 			
 			if (rom) {
 				this.load(rom);
