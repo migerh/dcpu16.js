@@ -670,11 +670,11 @@ var DCPU16 = (function () {
 			};
 			
 			this.trigger = function (event) {
-				var i;
+				var i, args = Array.prototype.slice(args, 1);
 				
 				if (this.events[event]) {
 					for (i = 0; i < this.events[event].length; i++) {
-						this.events[event][i].call(this.events[event][i].scope);
+						this.events[event][i].call(this.events[event][i].scope, args);
 					}
 				}
 			};
@@ -975,16 +975,17 @@ var DCPU16 = (function () {
 			};
 			
 			this.steps = function (steps) {
-				var i;
+				var i, r = true;
 				
 				for (i = 0; i < steps; i++) {
 					if (!this.step(false)) {
-						return false;
+						r = false;
+						break;
 					}
 				}
 				this.trigger('update');
 				
-				return true;
+				return r;
 			};
 			
 			this.start = function () {
@@ -1005,7 +1006,7 @@ var DCPU16 = (function () {
 			
 			this.stop = function () {
 				this.isRunning = false;
-				this.trigger('update');
+				this.trigger('update', true);
 			};
 			
 			this.drawCharacter = function (canvas, char1, char2, bg, fg, blink, offsetX, offsetY, bw, bh) {

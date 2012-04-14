@@ -107,12 +107,12 @@
 				
 			return r;
 		},
-		printStatus = function () {
+		printStatus = function (force) {
 			var out = [];
 
 			// 20 fps			
-			if (new Date().getTime() - lastUpdate > 50) {
-				if (!PC.isRunning) {
+			if (new Date().getTime() - lastUpdate > 50 || force) {
+				if (!PC.isRunning || force) {
 					markLine(assembly.meta.addr2line[PC.ram.PC]);
 
 					out.push('A  = ' + printValue(PC.ram.A) + '    ');
