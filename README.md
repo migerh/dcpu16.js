@@ -25,14 +25,19 @@ Please note that lines without a corresponding address (and vice versa) are unde
 
 	var PC = new DCPU16.PC([canvas], [rom]);
 Initializes a new DCPU16 PC.
-Optional parameter: Required for screen output.
-Optional parameter: An array of bytes.
+Optional parameter *canvas*: Required for screen output.
+Optional parameter *rom*: An array of bytes.
 
 	PC.load(rom);
 Load the rom given as a memory image (an array of bytes).
 
 	PC.step();
-Executes one step.
+	PC.steps(i);
+Executes one or *i* steps.
+
+	PC.start();
+	PC.stop();
+Run the emulator until *stop* is called.
 
 	PC.clear();
 Clear all registers and flags and reinitialize the RAM.
