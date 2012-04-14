@@ -165,6 +165,27 @@
 			
 			flipBit(oy + ox * 8);
 		});
+		
+		$('#char-data').on('change', function (e) {
+			var d = $('#char-data').val().split(',');
+
+			charmapData[selectedChar] = DCPU16.parseInt(d[0]);
+			charmapData[selectedChar + 1] = DCPU16.parseInt(d[1]);
+			
+			redrawCharmap();
+			loadCharacter(selectedChar);
+		});
+
+		/*$('#char-data').on('change', function (e) {
+			var d = $('#char-data').val().split(','), i;
+
+			for (i = 0; i < d.length; i++) {
+				charmapData[i] = DCPU16.parseInt(d[i]);
+			}
+			
+			redrawCharmap();
+			loadCharacter(selectedChar);
+		});*/
 	})();
 </script>
 </body>
