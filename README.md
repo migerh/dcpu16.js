@@ -32,7 +32,12 @@ Optional parameter *rom*: An array of bytes.
 Load the rom given as a memory image (an array of bytes).
 
 	PC.step();
-Executes one step.
+	PC.steps(i);
+Executes one or *i* steps.
+
+	PC.start();
+	PC.stop();
+Run the emulator until *stop* is called.
 
 	PC.clear();
 Clear all registers and flags and reinitialize the RAM.
