@@ -1,0 +1,171 @@
+<html>
+	<head>
+		<script type="text/javascript" src="../src/dcpu16.js"></script>
+		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+		
+		<style type="text/css">
+			.small {
+				font-size: 11px;
+			}
+			
+			.char {
+				float: left;
+				width: 200px;
+				height: 200px;
+			}
+
+			#char {
+				margin-left: 60px;
+				margin-top: 20px;
+			}
+			
+			.charmap {
+				margin-left: 230px;
+				width: 300px;
+				height: 300px;
+			}
+			
+			#charmap {
+				margin-left: 22px;
+				margin-top: 22px;
+			}
+
+			input {
+				width: 100%;
+			}
+			
+			.border {
+				border: 2px solid pink;
+			}
+		</style>
+	</head>
+<body>
+<p><a href="https://github.com/migerh/dcpu16.js">GitHub repo</a></p>
+<div>
+	<div class="char">
+		<h3>Character</h3>
+		<input type="text" value="" id="char-data" /><br />
+		<canvas id="char" width="80" height="160">Canvas is not supported.</canvas>
+	</div>
+
+	<div class="charmap">
+		<h3>Character map</h3>
+		<input type="text" value="" id="charmap-data" /><br />
+		<canvas id="charmap" width="256" height="256">Canvas is not supported.</canvas>
+	</div>
+</div>
+
+<script type="text/javascript">
+	(function () {
+		var charmapData = [
+				0x000F,0x0808,0x080F,0x0808,0x08F8,0x0808,0x00FF,0x0808,0x0808,0x0808,0x08FF,0x0808,0x00FF,0x1414,0xFF00,0xFF08,
+				0x1F10,0x1714,0xFC04,0xF414,0x1710,0x1714,0xF404,0xF414,0xFF00,0xF714,0x1414,0x1414,0xF700,0xF714,0x1417,0x1414,
+				0x0F08,0x0F08,0x14F4,0x1414,0xF808,0xF808,0x0F08,0x0F08,0x001F,0x1414,0x00FC,0x1414,0xF808,0xF808,0xFF08,0xFF08,
+				0x14FF,0x1414,0x080F,0x0000,0x00F8,0x0808,0xFFFF,0xFFFF,0xF0F0,0xF0F0,0xFFFF,0x0000,0x0000,0xFFFF,0x0F0F,0x0F0F,
+				0x0000,0x0000,0x005F,0x0000,0x0300,0x0300,0x3E14,0x3E00,0x266B,0x3200,0x611C,0x4300,0x3629,0x7650,0x0002,0x0100,
+				0x1C22,0x4100,0x4122,0x1C00,0x2A1C,0x2A00,0x083E,0x0800,0x4020,0x0000,0x0808,0x0800,0x0040,0x0000,0x601C,0x0300,
+				0x3E41,0x3E00,0x427F,0x4000,0x6259,0x4600,0x2249,0x3600,0x0F08,0x7F00,0x2745,0x3900,0x3E49,0x3200,0x6119,0x0700,
+				0x3649,0x3600,0x2649,0x3E00,0x0024,0x0000,0x4024,0x0000,0x0814,0x2241,0x1414,0x1400,0x4122,0x1408,0x0259,0x0600,
+				0x3E59,0x5E00,0x7E09,0x7E00,0x7F49,0x3600,0x3E41,0x2200,0x7F41,0x3E00,0x7F49,0x4100,0x7F09,0x0100,0x3E49,0x3A00,
+				0x7F08,0x7F00,0x417F,0x4100,0x2040,0x3F00,0x7F0C,0x7300,0x7F40,0x4000,0x7F06,0x7F00,0x7F01,0x7E00,0x3E41,0x3E00,
+				0x7F09,0x0600,0x3E41,0xBE00,0x7F09,0x7600,0x2649,0x3200,0x017F,0x0100,0x7F40,0x7F00,0x1F60,0x1F00,0x7F30,0x7F00,
+				0x7708,0x7700,0x0778,0x0700,0x7149,0x4700,0x007F,0x4100,0x031C,0x6000,0x0041,0x7F00,0x0201,0x0200,0x8080,0x8000,
+				0x0001,0x0200,0x2454,0x7800,0x7F44,0x3800,0x3844,0x2800,0x3844,0x7F00,0x3854,0x5800,0x087E,0x0900,0x4854,0x3C00,
+				0x7F04,0x7800,0x447D,0x4000,0x2040,0x3D00,0x7F10,0x6C00,0x417F,0x4000,0x7C18,0x7C00,0x7C04,0x7800,0x3844,0x3800,
+				0x7C14,0x0800,0x0814,0x7C00,0x7C04,0x0800,0x4854,0x2400,0x043E,0x4400,0x3C40,0x7C00,0x1C60,0x1C00,0x7C30,0x7C00,
+				0x6C10,0x6C00,0x4C50,0x3C00,0x6454,0x4C00,0x0836,0x4100,0x0077,0x0000,0x4136,0x0800,0x0201,0x0201,0x704C,0x7000],
+			singleChar = [0x0, 0x0],
+			PC = new DCPU16.PC(),
+			char, charmap,
+			cmbw = 4, cmbh = 4, scbw = 20, scbh = 20,
+			selectedChar = 0;
+			
+		char = document.getElementById('char').getContext('2d');
+		charmap = document.getElementById('charmap').getContext('2d');
+		
+		function loadCharacter(index) {
+			PC.drawCharacter(char, charmapData[index], charmapData[index + 1], '000', 'CDEB8B', false, 0, 0, scbw, scbh);
+			$('#char-data').val(DCPU16.printHex(charmapData[index]) + ', ' + DCPU16.printHex(charmapData[index+1]));
+		}
+		
+		function flipBit(index) {
+			var i = selectedChar;
+
+			// some ugly bit swaps
+			if (index > 15) {
+				i++;
+				
+				if (index < 24) {
+					index = index - 8;
+				} else {
+					index = index - 24;
+				}
+			} else {
+				if (index < 8) {
+					index = index + 8;
+				} else {
+					index = index - 8;
+				}
+			}
+			
+			charmapData[i] = charmapData[i] ^ (1 << index);
+			
+			// lazy code
+			redrawCharmap();
+			loadCharacter(selectedChar);
+		}
+		
+		function redrawCharmap() {
+			var i = 0, ox = 0, oy = 0, out = [];
+			
+			while (i < charmapData.length) {
+				PC.drawCharacter(charmap, charmapData[i++], charmapData[i++], '000', 'CDEB8B', false, ox, oy, cmbw, cmbh);
+	
+				if (i % 32 === 0) {
+					ox = 0;
+					oy += 8*cmbh;
+				} else {
+					ox += 4*cmbw;
+				}
+			}
+
+			charmap.strokeStyle = '#f00';
+			charmap.lineWidth = 2;
+			charmap.strokeRect((selectedChar / 2) % 16 * 4 * cmbw, Math.floor((selectedChar / 2) / 16) * 8 * cmbh, 4 * cmbw, 8 * cmbh);
+			
+			$.each(charmapData, function (i, v) {
+				out.push(DCPU16.printHex(v));
+			});
+			$('#charmap-data').val(out.join(', '));
+		}
+		
+		redrawCharmap();
+		loadCharacter(0);
+
+		// draw a rectangle	around the first char to indicate its selection
+		charmap.strokeStyle = '#f00';
+		charmap.lineWidth = 2;
+		charmap.strokeRect(0, 0, 4 * cmbw, 8 * cmbh);
+
+		$('#charmap').on('click', function (e) {
+			var x = e.pageX - this.offsetLeft,
+				y = e.pageY - this.offsetTop,
+				oy = Math.floor(y / (8*cmbh)), ox = Math.floor(x / (4*cmbw));
+			
+			selectedChar = 2 * (oy * 16 + ox);
+			loadCharacter(selectedChar);
+
+			redrawCharmap();
+		});
+		
+		$('#char').on('click', function (e) {
+			var x = e.pageX - this.offsetLeft,
+				y = e.pageY - this.offsetTop,
+				oy = Math.floor(y / (scbh)), ox = Math.floor(x / (scbw));
+			
+			flipBit(oy + ox * 8);
+		});
+	})();
+</script>
+</body>
+</html>

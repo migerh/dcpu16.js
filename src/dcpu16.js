@@ -114,6 +114,7 @@ var DCPU16 = (function () {
 	pub = {
 		// some of the helper methods might be useful outside the assembler and emulator scope
 		parseInt: _.parseInt,
+		printHex: _.printHex,
 		// assembler
 		asm: function (src, options) {
 			var tokens,
@@ -903,12 +904,34 @@ var DCPU16 = (function () {
 				this.trigger('update');
 			};
 			
+			this.drawCharacter = function (canvas, char1, char2, bg, fg, blink, offsetX, offsetY, bw, bh) {
+				var j, k, r = 0, c = 0, char, chars = [char1, char2], line;
+
+				for (j = 0; j < 2; j++) {
+					char = chars[j];
+					line = char >> 8;
+
+					for (k = 0; k < 16; k++) {
+						canvas.fillStyle = '#' + ((1 << (k % 8)) & line ? fg : bg);
+						canvas.fillRect(offsetX + c, offsetY + r, bh, bw);
+
+						if ((k + 1) % 8 === 0) {
+							line = char;
+							r = 0;
+							c += bw;
+						} else {
+							r += bh;
+						}
+					}
+				}
+			};
+			
 			this.renderScreen = function (canvas) {
 				var screenBase = 0x8000, screenSize = 0x180,
 					charMap = 0x8180, charMapSize = 0x100,
-					w = 512, h = 384, bh = 4, bw = 4, r = 0, c = 0, cr, cc,
+					w = 512, h = 384, bh = 4, bw = 4, r = 0, c = 0,
 					color = 'f', bg, fg, blink = 0,
-					i, j, k, val, char, line;
+					i, val;
 				
 				for (i = screenBase; i < screenBase + screenSize; i++) {
 					val = this.getWord(i);
@@ -923,25 +946,10 @@ var DCPU16 = (function () {
 							(((val >> 12) & 2) ? color : '0') +
 							(((val >> 12) & 1) ? color : '0');
 					
-					cr = 0;
-					cc = 0;
-					for (j = 0; j < 2; j++) {
-						char = this.getWord(charMap + 2 * (val & 0x7f) + j);
-						line = char >> 8;
-
-						for (k = 0; k < 16; k++) {
-							canvas.fillStyle = '#' + ((1 << (k % 8)) & line ? fg : bg);
-							canvas.fillRect(c + cc, r + cr, bh, bw);
-
-							if ((k + 1) % 8 === 0) {
-								line = char;
-								cr = 0;
-								cc += bw;
-							} else {
-								cr += bh;
-							}
-						}
-					}
+					this.drawCharacter(canvas,
+								this.getWord(charMap + 2 * (val & 0x7f)), this.getWord(charMap + 2 * (val & 0x7f) + 1),
+								bg, fg, blink,
+								c, r, bw, bh);
 					
 					if ((i + 1) % 32 === 0) {
 						c = 0;
