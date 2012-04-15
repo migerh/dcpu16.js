@@ -29,7 +29,7 @@ var Dasm16HighlightRules = function() {
     //this.$rules = new TextHighlightRules().getRules();
     var keywords = lang.arrayToMap(
         ("SET|ADD|SUB|MUL|DIV|MOD|SHL|SHR|AND|BOR|XOR|" +
-        "IFE|IFN|IFG|IFB|DAT").split("|")
+        "IFE|IFN|IFG|IFB|DAT|MOV").split("|")
     );
     
     var buildinConstants = lang.arrayToMap(

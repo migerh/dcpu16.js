@@ -374,6 +374,9 @@
 	; Use a macro
 	push(0xDEAD)
 	
+	; Sugar for asm veterans. Synonym to SET.
+	MOV Z, 0xBEEF
+	
 	; Simple expressions are resolved: +,-,*,/ and brackets are allowed.
 	; Expressions are not shortened.
 	SET [0x1000], (9+7)*2
