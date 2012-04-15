@@ -96,6 +96,7 @@
 			printStatus();
 		},
 		start = function () {
+			PC.clearInputBuffer();
 			PC.start();
 			printStatus(true);
 		},
@@ -354,11 +355,20 @@
 		
 		if (gist[1]) {
 			getGist(gist[1]);
+		} else if (localStorage.getItem('file')) {
+			editor.getSession().setValue(localStorage.getItem('file'));
+			asm();
 		} else {
 			load('example-features');
 			asm();
 		}
-		editor.getSession().on('change', asm);
+		editor.getSession().on('change', function (e) {
+			try {
+				localStorage.setItem('file', editor.getSession().getValue());
+			} catch (e) {}
+			
+			asm();
+		});
 	};
 </script>
 

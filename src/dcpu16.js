@@ -766,6 +766,15 @@ var DCPU16 = (function () {
 				};
 			})();
 			
+			this.clearInputBuffer = function () {
+				var i;
+				
+				for (i = 0; i < 0xf; i++) {
+					this.ram[_.charBuffer + i] = 0x0;
+				}
+				this.ram[_.charPointer] = _.charBuffer;
+			};
+			
 			this.load = function (rom, where) {
 				var i = 0;
 				
