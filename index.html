@@ -385,6 +385,8 @@
 	; Labels inside macros are not resolved properly yet.
 	#macro push(value) {
 		SET PUSH, value
+		; Equivalent
+		; SET [--SP], value
 	}
 
 	; Everything from the specification should work

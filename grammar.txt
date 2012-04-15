@@ -1,4 +1,5 @@
 
+
 /*
  * Classic example grammar, which recognizes simple arithmetic expressions like
  * "2*(3+4)". The parser generated from this grammar then computes their value.
@@ -122,7 +123,21 @@ paramlist
     }
 
 param "parameter"
-  = "[" v:additive "]"
+  = "[" ws m:"--"? ws "SP" ws p:"++"? ws "]"
+    {
+      tmp = "PEEK";
+      if (m === '--' && p === '') {
+        tmp = "PUSH";
+      } else if (m === '' && p === '++') {
+        tmp = "POP";
+      }
+
+      return {
+        isString: true,
+        value: tmp
+      };
+    }
+  / "[" v:additive "]"
     {
       v.hasBrackets = true;
       return v;
