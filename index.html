@@ -5,11 +5,15 @@
 		<script type="text/javascript" src="src/base64.js"></script>
 		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
 		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/ace/0.2.0/ace.js"></script>
+		<script type="text/javascript" src="src/ace-dasm16.js"></script>
+		<script type="text/javascript" src="themes/theme-merbivore.js"></script>
+		<script type="text/javascript" src="themes/theme-vibrant_ink.js"></script>
+		<script type="text/javascript" src="themes/theme-vibrant_ink_mod.js"></script>
 		
 		<style type="text/css">
 			.markline {
 				position: absolute;
-				background: pink;
+				background-color: #641d1d;
 				z-index: 5;
 			}
 		</style>
@@ -23,8 +27,8 @@
 <p><a href="https://github.com/migerh/dcpu16.js">GitHub repo</a></p>
 <span style="font-size: 11px;">Click the line numbers to toggle breakpoints. Drop asm source files or rom files over the editor to load them.</span>
 <p>
-	<div id="src" style="width: 800px; height: 400px; float: left;"></div>
-	<pre id="status" style="margin-left: 810px; width: 200px; height: 400px;"></pre>
+	<div id="src" style="width: 700px; height: 400px; float: left;"></div>
+	<canvas id="out" width="512" height="384" style="margin-left: 710px; margin-top: 0px;">Canvas is not supported.</canvas>
 </p>
 <p>
 	<!--button onclick="asm();">Assemble</button-->
@@ -39,7 +43,7 @@
 <button onclick="gotoRam('SP');" onmouseover="highlightRam('SP');" onmousemove="highlightRam('SP');" onmouseout="highlightRam('none');">SP</button>
 <button onclick="gotoRam('PC');" onmouseover="highlightRam('PC');" onmousemove="highlightRam('PC');" onmouseout="highlightRam('none');">PC</button><br />
 <pre id="ram" style="margin-top: 0; width: 400px; height: 170px; font-size: 14px; overflow-x: hidden; overflow-y: scrollbar; float: left;"></pre>
-<canvas id="out" width="512" height="384" style="margin-top: -60px;">Canvas is not supported.</canvas>
+<pre id="status" style="margin-left: 410px; width: 200px; height: 400px;"></pre>
 
 <script type="text/javascript">
 	var PC, assembly, editor, marker, lastUpdate = 0, canvas,
@@ -221,9 +225,14 @@
 		};
 	
 	window.onload = function () {
-		var gist;
+		var gist, dasm16 = require('ace/mode/dasm16').Mode;
 		
 		editor = ace.edit("src");
+		//editor.setTheme('ace/theme/merbivore');
+		//editor.setTheme('ace/theme/vibrant_ink');
+		editor.setTheme('ace/theme/vibrant_ink_mod');
+		editor.session.setUseWorker(false);
+		editor.getSession().setMode(new dasm16());
 		//$('#src').css('font-size', '14px');
 		
 		canvas = document.getElementById('out').getContext('2d');
