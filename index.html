@@ -233,8 +233,21 @@
 				return;
 			}
 			
+			var curline = editor.getSession().getSelection().getCursor().row + 1,
+				totallines = editor.getSession().getValue().split("\n").length,
+				start = assembly.meta.line2addr[curline],
+				end, i;
+			
+			for (i = curline + 1; i < totallines; i++) {
+				if (end = assembly.meta.line2addr[i]) {
+					break;
+				}
+			}
+			
 			$('.ram-word').css('background-color', 'white');
-			$('#ram-word-' + assembly.meta.line2addr[editor.getSession().getSelection().getCursor().row+1]).css('background-color', 'pink');
+			for (i = start; i < end; i++) {
+				$('#ram-word-' + i).css('background-color', 'pink');
+			}
 		});
 
 		$('#src > div.ace_gutter').on('click', function (e) {
@@ -327,9 +340,9 @@
 			getGist(gist[1]);
 		} else {
 			load('example-features');
-			editor.getSession().on('change', asm);
 			asm();
 		}
+		editor.getSession().on('change', asm);
 	};
 </script>
 

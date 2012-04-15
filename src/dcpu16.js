@@ -768,15 +768,19 @@ var DCPU16 = (function () {
 			};
 			
 			this.setWord = function (ptr, val) {
+				var old = this.ram[ptr];
+				
 				this.ram[ptr] = val & this.maxWord;
 				
 				// triger screen update
-				if (ptr >= _.screenBase && ptr < _.screenBase + _.screenSize) {
-					this.updateScreen(ptr);
-				}
-				
-				if (ptr >= _.charMapBase && ptr < _.charMapBase + _.charMapSize) {
-					this.updateTile(ptr);
+				if (old - this.ram[ptr] !== 0) {
+					if (ptr >= _.screenBase && ptr < _.screenBase + _.screenSize) {
+						this.updateScreen(ptr);
+					}
+					
+					if (ptr >= _.charMapBase && ptr < _.charMapBase + _.charMapSize) {
+						this.updateTile(ptr);
+					}
 				}
 			};
 			
@@ -1133,6 +1137,9 @@ var DCPU16 = (function () {
 			this.clear();
 			this.defaultCharMap();
 
+			if (this.screen) {
+				this.drawScreen();
+			}
 			
 			if (rom) {
 				this.load(rom);
