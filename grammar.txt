@@ -53,6 +53,16 @@ stmt
       };
     }
 
+  / ws d:directive ws params:paramlist ws
+    {
+      return {
+        line: line,
+        directive: d,
+        params: params,
+        action: "directive"
+      };
+    }
+
   / ws label:labeldef? ws cmd:cmd ws
     {
       tmp = {
@@ -216,6 +226,10 @@ label "label"
     {
       return label.join('');
     }
+
+directive "directive"
+  = "." l:label
+    { return l; }
 
 allbutquotes
   = v:"\\\""

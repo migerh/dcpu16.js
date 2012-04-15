@@ -60,7 +60,10 @@
 		},
 		newPC = function () {
 			if (assembly) {
-				PC = new DCPU16.PC(canvas, assembly.bc);
+				PC = new DCPU16.PC(canvas);
+				PC.load(assembly.bc, assembly.base);
+				$('#jumpto').val(DCPU16.printHex(assembly.base));
+				PC.ram.PC = assembly.base;
 				printStatus();
 			}
 		},
@@ -119,7 +122,7 @@
 				return;
 			}
 
-			markLine(assembly.meta.addr2line[PC.ram.PC]);
+			markLine(assembly.meta.addr2line[PC.ram.PC - assembly.base]);
 			out.push('A  = ' + printValue(PC.ram.A) + '    ');
 			out.push('B  = ' + printValue(PC.ram.B) + '<br />');
 			out.push('C  = ' + printValue(PC.ram.C) + '    ');
@@ -165,7 +168,7 @@
 			if (where) {
 				where = PC.ram[where];
 			} else {
-				where = DCPU16.parseInt($('#jumpto').val());
+				where = DCPU16.parseInt($('#jumpto').val()) || 0;
 			}
 			where = Math.min(Math.floor(where/8), 0xffb0/8),
 			
@@ -187,7 +190,7 @@
 			$('#ram-word-' + where).css('background-color', 'pink');
 		},
 		downloadRom = function () {
-			window.open('data:application/octet-stream;base64,' + Base64.encode(assembly.bc), '_blank', 'height=300,width=400');
+			window.open('data:application/octet-stream;base64,' + Base64.encode(assembly.bc), '_blank', 'height=100,width=100');
 		},
 		
 		getGist = function (id) {
@@ -244,11 +247,11 @@
 			
 			var curline = editor.getSession().getSelection().getCursor().row + 1,
 				totallines = editor.getSession().getValue().split("\n").length,
-				start = assembly.meta.line2addr[curline],
+				start = assembly.meta.line2addr[curline] + assembly.base,
 				end, i;
 			
 			for (i = curline + 1; i < totallines; i++) {
-				if (end = assembly.meta.line2addr[i]) {
+				if (end = assembly.meta.line2addr[i] + assembly.base) {
 					break;
 				}
 			}
@@ -263,20 +266,24 @@
 			var line = $(e.toElement),
 				lineNumber = line.html().match(/\d*$/);
 			
-			if (assembly.meta.line2addr[lineNumber]) {
-				line.html((PC.toggleBreakpoint(assembly.meta.line2addr[lineNumber]) ? '<span style="color: red; font-weight: bolder;">&bull;</span> ' : '') + lineNumber);
+			if (assembly.meta.line2addr[lineNumber] + assembly.base) {
+				line.html((PC.toggleBreakpoint(assembly.meta.line2addr[lineNumber] + assembly.base) ? '<span style="color: red; font-weight: bolder;">&bull;</span> ' : '') + lineNumber);
 			}
 		});
 		
 		$('#src > .ace_sb').on('scroll', function (e) {
 			$('#src div.ace_gutter-cell').each(function (i, line) {
 				var lineNumber = $(line).html().match(/\d*$/),
-					lineAddr = assembly.meta.line2addr[lineNumber];
+					lineAddr = assembly.meta.line2addr[lineNumber] + assembly.base;
 					
 				if (PC.breakpoints[lineAddr]) {
 					$(line).html('<span style="color: red; font-weight: bolder;">&bull;</span> ' + lineNumber);
 				}
 			});
+		});
+		
+		$('#jumpto').on('keyup', function (e) {
+			gotoRam();
 		});
 		
 		$(document).on('keyup', function (e) {
@@ -360,6 +367,9 @@
 		<script type="text/dcpu-asm" id="example-features">
 ; If there is only a comment in the first line, make sure there are no whitespaces before.
 ; This is a known issue: https://github.com/migerh/dcpu16.js/issues/6
+
+	; start at 0x1000
+	.org 0x1000
 
 	; Macros can be used.
 	; Labels inside macros are not resolved properly yet.

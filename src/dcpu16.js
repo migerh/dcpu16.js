@@ -149,7 +149,7 @@ var DCPU16 = (function () {
 		printHex: _.printHex,
 		// assembler
 		asm: function (src, options) {
-			var tokens,
+			var tokens, baseAddress = 0x0,
 				bc = [], rom = [],
 				labels = {}, resolve = [], expr = [], macros = {},
 				pc = 0, op, oppc, i, t, u,
@@ -196,7 +196,7 @@ var DCPU16 = (function () {
 							if (_.registers[expression.children[i].value.toUpperCase()] >= 0) {
 								registers.push(_.registers[expression.children[i].value.toUpperCase()]);
 							} else if (labels[expression.children[i].value] >= 0) {
-								values.push(labels[expression.children[i].value]);
+								values.push(labels[expression.children[i].value] + baseAddress);
 							} else {
 								throw new ParserError('Unresolved label "' + expression.children[i].value + '"', line);
 							}
@@ -426,6 +426,15 @@ var DCPU16 = (function () {
 							bc[oppc] = op;
 							
 							break;
+						case 'directive':
+							switch (node.directive) {
+							case 'org':
+								if (node.params.length > 0 && node.params[0].isNumber) {
+									baseAddress = node.params[0].value;
+								}
+								break;
+							}
+							break;
 						case 'macro':
 							if (allowMacros) {
 								macros[node.name] = node;
@@ -471,7 +480,7 @@ var DCPU16 = (function () {
 			}
 			
 			for (i = 0; i < resolve.length; i++) {
-				bc[resolve[i].pc] = labels[resolve[i].label];
+				bc[resolve[i].pc] = labels[resolve[i].label] + baseAddress;
 			}
 
 			for (i = 0; i < expr.length; i++) {
@@ -499,10 +508,11 @@ var DCPU16 = (function () {
 				rom.push(bc[i] & 0xff);
 				rom.push((bc[i] >> 8) & 0xff);
 			}
-
+			
 			return {
 				src: src,
 				bc: rom,
+				base: baseAddress,
 				meta: meta
 			};
 		},
@@ -981,7 +991,7 @@ var DCPU16 = (function () {
 					op = w & 0xf,
 					a = (w & 0x3f0) >> 4,
 					b = (w & 0xfc00) >> 10;
-				
+
 				trigger = _.def(trigger, true);
 					
 				this.exec(op, a, b);
