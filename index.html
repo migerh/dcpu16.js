@@ -184,9 +184,45 @@
 		},
 		downloadRom = function () {
 			window.open('data:application/octet-stream;base64,' + Base64.encode(assembly.bc), '_blank', 'height=300,width=400');
+		},
+		
+		getGist = function (id) {
+			var params = id.split('|'),
+				uri = 'https://api.github.com/gists/' + params[0],
+				file,
+				callback = function (data) {
+					var i;
+					if (data.meta.status === 200) {
+						if (data.data.files[params[1]]) {
+							file = params[1];
+						} else {
+							for (i in data.data.files) {
+								if (data.data.files.hasOwnProperty(i) && data.data.files[i].language === 'DCPU-16 ASM') {
+									file = i;
+									break;
+								}
+							}
+						}
+
+						editor.getSession().setValue(data.data.files[i].content);
+						asm();
+					}
+				};
+
+			$.ajax({
+				type: 'GET',
+				dataType: 'jsonp',
+				jsonp: 'callback',
+				url: uri,
+				success: function (data) {
+					callback(data);  
+				}
+			});
 		};
 	
 	window.onload = function () {
+		var gist;
+		
 		editor = ace.edit("src");
 		//$('#src').css('font-size', '14px');
 		
@@ -285,9 +321,15 @@
 			}
         }, false);
 		
-		load('example-features');
-		editor.getSession().on('change', asm);
-		asm();
+		gist = window.location.href.split('#gist-');
+		
+		if (gist[1]) {
+			getGist(gist[1]);
+		} else {
+			load('example-features');
+			editor.getSession().on('change', asm);
+			asm();
+		}
 	};
 </script>
 

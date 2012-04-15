@@ -157,6 +157,7 @@ var DCPU16 = (function () {
 				meta = {
 					addr2line: {},
 					line2addr: {},
+					warnings: [],
 					entry: 0
 				},
 
