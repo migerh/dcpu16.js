@@ -123,7 +123,7 @@ var DCPU16 = (function () {
 		},
 		preprocess: function (src) {
 			// eliminate tabs
-			return src.replace(/\t/g, "");
+			return src.replace(/\t/g, " ");
 		}
 	},
 	
