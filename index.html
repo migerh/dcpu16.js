@@ -3,6 +3,7 @@
 		<script type="text/javascript" src="src/dcpu16.js"></script>
 		<script type="text/javascript" src="src/parser.js"></script>
 		<script type="text/javascript" src="src/base64.js"></script>
+		<script type="text/javascript" src="src/io-web.js"></script>
 		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
 		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/ace/0.2.0/ace.js"></script>
 		<script type="text/javascript" src="src/ace-dasm16.js"></script>
@@ -19,17 +20,15 @@
 		</style>
 	</head>
 <body>
-<!--p>
-	<a href="javascript:void(0);" onclick="load('example-1');">Ref example</a>
-	<a href="javascript:void(0);" onclick="load('example-screen');">Screen buffer example</a>
-	<a href="javascript:void(0);" onclick="load('example-breaking');">Example that breaks in some emulators</a>
-</p-->
+
 <p><a href="https://github.com/migerh/dcpu16.js">GitHub repo</a></p>
 <span style="font-size: 11px;">Click the line numbers to toggle breakpoints. Drop asm source files or rom files over the editor to load them.</span>
-<p>
-	<div id="src" style="width: 700px; height: 400px; float: left;"></div>
+
+<div style="height: 500px;">
+	<div id="src" style="width: 700px; height: 500px; float: left;"></div>
 	<canvas id="out" width="512" height="384" style="margin-left: 710px; margin-top: 0px;">Canvas is not supported.</canvas>
-</p>
+</div>
+
 <p>
 	<!--button onclick="asm();">Assemble</button-->
 	<button onclick="step();">Step</button>
@@ -37,6 +36,7 @@
 	<button onclick="stop();">Stop</button>
 	<button onclick="_clear();">Clear</button>
 	<button onclick="downloadRom();">Download rom</button>
+	<span id="summary"></span>
 </p>
 
 <button onclick="gotoRam();">Go to</button> <input type="text" value="0" id="jumpto" />
@@ -69,12 +69,26 @@
 		},
 		asm = function () {
 			var src = editor.getSession().getValue(),
-				cursor = editor.getCursorPosition();
+				cursor = editor.getCursorPosition(),
+				ann = [], i;
 			
 			editor.getSession().clearAnnotations();
+			$('#summary').html('');
 			
 			try {
 				assembly = DCPU16.asm(src);
+				for (i = 0; i < assembly.meta.warnings.length; i++) {
+					ann.push({
+						row: assembly.meta.warnings[i].line-1,
+						column: 0,
+						text: assembly.meta.warnings[i].message,
+						type: 'warning'
+					});
+				}
+				editor.getSession().setAnnotations(ann);
+				if (ann.length > 0) {
+					$('#summary').html('There are ' + ann.length + ' warnings. <button onclick="editor.gotoLine(' + (ann[0].row+1) + ');">Jump to first one</button>.');
+				}
 				newPC();
 			} catch (e) {
 				editor.getSession().removeMarker(marker);
@@ -87,6 +101,7 @@
 					type: 'error'
 				}]);
 				editor.gotoLine(e.line-1);
+				$('#summary').html('There has been an error. <button onclick="editor.gotoLine(' + (e.line) + ');">Jump to the error</button>.');
 			}
 			
 			editor.moveCursorToPosition(cursor);

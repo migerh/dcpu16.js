@@ -151,7 +151,7 @@ var DCPU16 = (function () {
 		asm: function (src, options) {
 			var tokens, baseAddress = 0x0,
 				bc = [], rom = [],
-				labels = {}, resolve = [], expr = [], macros = {},
+				labels = {}, resolve = [], expr = [], macros = {}, constants = {},
 				pc = 0, op, oppc, i, t, u,
 				
 				meta = {
@@ -159,6 +159,13 @@ var DCPU16 = (function () {
 					line2addr: {},
 					warnings: [],
 					entry: 0
+				},
+				
+				warn = function (msg, line) {
+					meta.warnings.push({
+						message: msg,
+						line: line
+					});
 				},
 
 				push = function (v) {
@@ -197,8 +204,10 @@ var DCPU16 = (function () {
 								registers.push(_.registers[expression.children[i].value.toUpperCase()]);
 							} else if (labels[expression.children[i].value] >= 0) {
 								values.push(labels[expression.children[i].value] + baseAddress);
+							} else if (constants[expression.children[i].value] >= 0) {
+								values.push(constants[expression.children[i].value]);
 							} else {
-								throw new ParserError('Unresolved label "' + expression.children[i].value + '"', line);
+								throw new ParserError('Unresolved label or constant "' + expression.children[i].value + '"', line);
 							}
 						} else if (expression.children[i].isExpression) {
 							w = evaluateExpression(expression.children[i]);
@@ -349,6 +358,28 @@ var DCPU16 = (function () {
 					
 					return tokens;
 				},
+				handleDat = function (node) {
+					var j, k, w, line = node.line;
+					
+					for (j = 0; j < node.params.length; j++) {
+						w = node.params[j];
+	
+						if (w.isNumber) {
+							push(w.value);
+						} else if (w.isStringLiteral) {
+							w = _.resolveEscapeSequences(w.value);
+							for (k = 0; k < w.length; k++) {
+								push(w.charCodeAt(k));
+							}
+						} else if (w.isString) {
+							pushLabel(w.value, 0);
+						} else if (w.isExpression) {
+							pushExpression(w, 0, false);
+						} else {
+							throw new ParserError('Unknown DAT value "' + JSON.stringify(w) + '"', line);
+						}
+					}
+				},
 				parseTokens = function (tokens, allowMacros) {
 					var i, j, k, w,
 						line, node, macro;
@@ -361,13 +392,16 @@ var DCPU16 = (function () {
 							// e.g. a line completely consisting of a comment
 							continue;
 						case 'op':
-							// standard op/label stuff
-							if (node.label) {
-								labels[node.label] = pc;
-							}
-							
 							if (!node.line) {
 								throw new ParserError('Undefined line');
+							}
+							
+							// standard op/label stuff
+							if (node.label) {
+								if (labels[node.label]) {
+									warn('This label has been defined before', node.line);
+								}
+								labels[node.label] = pc;
 							}
 							
 							line = node.line;
@@ -382,26 +416,9 @@ var DCPU16 = (function () {
 							// everything from node is done, continue with node.cmd
 							node = node.cmd;
 							
-							// handle the special op DAT
+							// handle the op styled DAT
 							if (node.op === 'DAT') {
-								for (j = 0; j < node.params.length; j++) {
-									w = node.params[j];
-	
-									if (w.isNumber) {
-										push(w.value);
-									} else if (w.isStringLiteral) {
-										w = _.resolveEscapeSequences(w.value);
-										for (k = 0; k < w.length; k++) {
-											push(w.charCodeAt(k));
-										}
-									} else if (w.isString) {
-										pushLabel(w.value, 0);
-									} else if (w.isExpression) {
-										pushExpression(w, 0, false);
-									} else {
-										throw new ParserError('Unknown DAT value "' + JSON.stringify(w) + '"', line);
-									}
-								}
+								handleDat(node);
 								continue;
 							}
 							
@@ -432,6 +449,21 @@ var DCPU16 = (function () {
 								if (node.params.length > 0 && node.params[0].isNumber) {
 									baseAddress = node.params[0].value;
 								}
+								break;
+							case 'dat':
+							case 'dw':
+								handleDat(node);
+								break;
+							case 'eq':
+							case 'equ':
+								if (node.params.length > 1 && node.params[0].isString) {
+									constants[node.params[0].value] = node.params[1].isExpression ? evaluateExpression(node.params[1], false)[0] : node.params[1].value;
+								} else {
+									throw new ParserError('Not enough parameters.', line);
+								}
+								break;
+							default:
+								warn('Ignoring unknown assembler directive "' + node.directive + '"', line);
 								break;
 							}
 							break;
@@ -480,7 +512,13 @@ var DCPU16 = (function () {
 			}
 			
 			for (i = 0; i < resolve.length; i++) {
-				bc[resolve[i].pc] = labels[resolve[i].label] + baseAddress;
+				if (labels[resolve[i].label]) {
+					bc[resolve[i].pc] = labels[resolve[i].label] + baseAddress;
+				} else if (constants[resolve[i].label]) {
+					bc[resolve[i].pc] = constants[resolve[i].label];
+				} else {
+					throw new ParserError('Unresolved label "' + resolve[i].label + '"', resolve[i].line);
+				}
 			}
 
 			for (i = 0; i < expr.length; i++) {
@@ -513,7 +551,8 @@ var DCPU16 = (function () {
 				src: src,
 				bc: rom,
 				base: baseAddress,
-				meta: meta
+				meta: meta,
+				constants: constants
 			};
 		},
 		dasm: function (rom, options) {
