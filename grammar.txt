@@ -13,6 +13,25 @@
   var line = 1;
   var tmp;
   var i;
+
+  var isArray = function (val) {
+    return typeof val === "object" && 'splice' in val && 'join' in val;
+  };
+
+  var node = function (type, value, children) {
+    var node = {
+          type: type,
+          value: value,
+          line: line,
+          children: []
+        }, i;
+
+    for (i = 2; i < arguments.length; i++) {
+      node.children.push(arguments[i]);
+    }
+
+    return node;
+  };
 }
 
 start
@@ -24,117 +43,74 @@ start
 
 statements
   = nl* stmt:stmt statements:statements
-    { return [stmt].concat(statements); }
+    { return isArray(stmt) ? stmt.concat(statements) : [stmt].concat(statements); }
 
   / stmt:stmt
-    { return [stmt]; }
+    { return isArray(stmt) ? stmt : [stmt]; }
 
   / nl*
     { return []; }
 
 
 stmt
-  = ws "#macro"? ws name:label ws "(" ws params:paramlist ws ")" ws nl? "{" ws nl? code:statements ws "}" ws
-    {
-      return {
-        name: name,
-        params: params,
-        src: code,
-        action: "macro"
-      };
-    }
-
-  / ws name:label ws "(" ws params:paramlist ws ")"
-    {
-      return {
-        line: line,
-        name: name,
-        params: params,
-        action: "macrocall"
-      };
+  = ws ("." / "#") "macro"? ws name:label ws "(" ws params:paramlist ws ")" ws nl? "{" ws nl? code:statements ws "}" ws
+    { return node("node_directive", "macro", node.apply(this, ["node_value", "val_paramlist"].concat(params)), code);
     }
 
   / ws d:directive ws params:wsparamlist ws
-    {
-      return {
-        line: line,
-        directive: d,
-        params: params,
-        action: "directive"
-      };
-    }
+    { return node("node_directive", d, node.apply(this, ["node_value", "val_paramlist"].concat(params))); }
 
   / ws label:labeldef? ws cmd:cmd ws
     {
-      tmp = {
-        line: line,
-        cmd: cmd,
-        action: "op"
-      };
+      tmp = cmd;
+
       if (label.length > 0) {
-        tmp.label = label;
+        tmp = [node("node_label", label), tmp];
       }
+
       return tmp;
     }
 
   / ws label:labeldef ws
-    {
-      return {
-        line: line,
-        label: label,
-        action: "op"
-      };
-    }
+    { return node("node_label", label); }
 
-  / comment
-    {
-      return {
-        action: "nop"
-      };
-    }
+  / ws comment
+    { return node("node_nop", "nop"); }
 
 
 cmd
   = ws op:op ws plist:paramlist
-    {
-      return {
-        op: op,
-        params: plist
-      };
-    }
-
-op "operator"
-  = op:([a-zA-Z][a-zA-Z][a-zA-Z]) { return op.join('').toUpperCase(); }
+    { return node("node_op", op, node.apply(this, ["node_value", "val_paramlist"].concat(plist))); }
 
 paramlist
-  = label:labeldef? ws v:param ws "," ws l:paramlist
+  = /* no value labels for now label:labeldef?*/ ws v:param ws "," ws l:paramlist
     {
-      if (label.length > 0) {
+      /*if (label.length > 0) {
         v.label = label;
-      }
+      }*/
       return [v].concat(l);
     }
-  / label:labeldef? ws v:param
+  / /* no value labels for now label:labeldef?*/ ws v:param
     {
-      if (label.length > 0) {
+      /*if (label.length > 0) {
         v.label = label;
-      }
+      }*/
       return [v];
     }
 
 wsparamlist
-  = label:labeldef? ws v:param ws ","? ws l:paramlist
+  = /* no value labels for now label:labeldef?*/ ws v:param ws ","? ws l:paramlist
     {
-      if (label.length > 0) {
+      /*if (label.length > 0) {
         v.label = label;
-      }
+      }*/
       return [v].concat(l);
     }
-  / label:labeldef? ws v:param
+  / /* no value labels for now label:labeldef?*/ ws v:param
     {
-      if (label.length > 0) {
+      /*if (label.length > 0) {
         v.label = label;
-      }
+      }*/
       return [v];
     }
 
@@ -148,87 +124,54 @@ param "parameter"
         tmp = "POP";
       }
 
-      return {
-        isString: true,
-        value: tmp
-      };
+      return node("node_value", "val_deref", node("val_identifier", tmp));
     }
   / "[" v:additive "]"
-    {
-      v.hasBrackets = true;
-      return v;
-    }
+    { return node("node_value", "val_deref", v); }
   / v:additive
     {
-      return v;
+      return node("node_value", "val_literal", v);
     }
 
 additive
   = left:multiplicative ws right:(("+" / "-") ws multiplicative ws)*
     {
-      tmp = {
-        isExpression: true,
-        op: "add",
-        ops: [],
-        children: [left]
-      };
-      
-      for (i = 0; i < right.length; i++) {
-        tmp.ops.push(right[i][0]);
-        tmp.children.push(right[i][2]);
-      }
-
       if (right.length === 0) {
-        tmp = left;
+        return left;
       }
 
-      return tmp;
+      tmp = right[right.length - 1][2];
+
+      for (i = right.length - 2; i >= 0; i--) {
+        tmp = node("node_expression", right[i + 1][0], right[i][2], tmp);
+      }
+
+      return node("node_expression", right[0][0], left, tmp);
     }
 
 multiplicative
   = left:value ws right:(("*" / "/") ws value ws)*
     {
-      tmp = {
-        isExpression: true,
-        op: 'mul',
-        ops: [],
-        children: [left]
-      };
-
-      for (i = 0; i < right.length; i++) {
-        tmp.ops.push(right[i][0]);
-        tmp.children.push(right[i][2]);
-      }
-
       if (right.length === 0) {
-        tmp = left;
+        return left;
       }
 
-      return tmp;
+      tmp = right[right.length - 1];
+
+      for (i = right.length - 2; i >= 0; i--) {
+        tmp = node("node_expression", right[i + 1][0], right[i][2], tmp);
+      }
+
+      return node("node_expression", right[0][0], left, tmp);
     }
 
 value
   = v:number
-    {
-      return {
-        value: v,
-        isNumber: true
-      };
-    }
+    { return node("val_number", v); }
   / v:label
-    {
-      return {
-        value: v,
-        isString: true
-      };
-    }
+    { return node("val_identifier", v); }
   / "\"" v:strliteral "\""
-    {
-      return {
-        value: v,
-        isStringLiteral: true
-      };
-    }
+    { return node("val_string", v); }
   / "(" ws v:additive ws ")"
     { return v; }
 
@@ -251,12 +194,16 @@ strliteral "stringliteral"
 labeldef
   = ":" l:label
     { return l; }
+  / l:label ":"
+    { return l; }
 
 label "label"
   = label:([a-zA-Z0-9_\.]+)
-    {
-      return label.join('');
-    }
+    { return label.join(''); }
+
+op "operator"
+  = op:([a-zA-Z][a-zA-Z][a-zA-Z])
+    { return op.join('').toUpperCase(); }
 
 directive "directive"
   = ("." / "#") l:label
