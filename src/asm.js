@@ -1,0 +1,474 @@
+
+var DCPU16 = DCPU16 || {};
+
+(function () {
+	var _ = {
+			opTable: {
+				'SET': 0x1,
+				// sugar
+				'MOV': 0x1,
+				'ADD': 0x2,
+				'SUB': 0x3,
+				'MUL': 0x4,
+				'MLI': 0x5,
+				'DIV': 0x6,
+				'DVI': 0x7,
+				'MOD': 0x8,
+				'MDI': 0x9,
+				'AND': 0xa,
+				'BOR': 0xb,
+				'XOR': 0xc,
+				'SHR': 0xd,
+				'ASR': 0xe,
+				'SHL': 0xf,
+
+				'IFB': 0x10,
+				'IFC': 0x11,
+				'IFE': 0x12,
+				'IFN': 0x13,
+				'IFG': 0x14,
+				'IFA': 0x15,
+				'IFL': 0x16,
+				'IFU': 0x17,
+				
+				'ADX': 0x1a,
+				'SBX': 0x1b,
+				
+				'STI': 0x1e,
+				'STD': 0x1f,
+		
+				// special instructions
+				// TODO: get rid of the arithmetics
+				'JSR': 0x1 << 5,
+				
+				'HCF': 0x7 << 5,
+				'INT': 0x8 << 5,
+				'IAG': 0x9 << 5,
+				'IAS': 0xa << 5,
+				'IAP': 0xb << 5,
+				'IAQ': 0xc << 5,
+				
+				'HWN': 0x10 << 5,
+				'HWQ': 0x11 << 5,
+				'HWI': 0x12 << 5
+			},
+			
+			regTable: {
+				'A': 0x0,
+				'B': 0x1,
+				'C': 0x2,
+				'X': 0x3,
+				'Y': 0x4,
+				'Z': 0x5,
+				'I': 0x6,
+				'J': 0x7,
+				
+				// pseudo registers
+				'PUSH': 0x18,
+				'POP': 0x18,
+				'PEEK': 0x19,
+				
+				// special purpose registers
+				'SP': 0x1b,
+				'PC': 0x1c,
+				'EX': 0x1d,
+				'IA': 0xff
+			},
+			
+			maxWord: 0xffff,
+			ramSize: 0x10000,
+			wordSize: 2,
+			
+			preprocess: function (src) {
+				// eliminate tabs
+				return src.replace(/\t/g, " ");
+			},
+			def: function (val, def) {
+				if (typeof val == 'undefined' || typeof val == 'null') {
+					return def;
+				}
+				
+				return val;
+			},
+			printHex: function (v, w) {
+				var r = v.toString(16), i;
+				
+				w = _.def(w, 0);
+				
+				for (i = r.length; i < w; i++) {
+					r = '0' + r;
+				}
+				
+				return '0x' + r;
+			},
+
+			isArray: function (val) {
+				return typeof val === "object" && 'splice' in val && 'join' in val;
+			},
+
+			trim: function (str) {
+				str = str.replace(/^\s+/, "");
+				str = str.replace(/\s+$/, "");
+
+				return str;
+			},
+			parseInt: function (str) {
+				var r;
+			
+				str = _.trim(str);
+			
+				if (str.match(/^0x/)) {
+					r = parseInt(str, 16);
+				} else if (str[0] === '0') {
+					r = parseInt(str, 8);
+				} else {
+					r = parseInt(str, 10);
+				}
+			
+				return r;
+			},
+		}, // end of definition of _
+		
+		ParserError = function (msg, line) {
+			this.name = 'ParserError';
+			this.message = msg;
+			this.line = line;
+		};
+		ParserError.prototype = Error.prototype;
+
+	DCPU16.asm = function (src, options) {
+		'use strict';
+		
+		var i, tokens, pc = 0, oppc = 0, par = 0, tmp,
+		
+			// results
+			bc = [], listing = [], rom = [],
+			addr2line = {}, line2addr = {},
+		
+			// constrol structures
+			labels = {}, macros = {},
+			
+			// second pass
+			resolveLabels = [], resolveExpressions = [],
+			
+			// errors, warnings, ...
+			warnings = [],
+			warn = function (msg, line) {
+				warnings.push({
+					message: msg,
+					line: line
+				});
+			},
+			
+			// parsing and generating
+			emit = function (value) {
+				bc.push(value & _.maxWord);
+				pc++;
+			},
+			
+			parseTokens = function (node, allowMacros, evalExpressions) {
+				var opcode = 0, parameters, i, j, result, tmp = [], parval;
+
+				switch(node.type) {
+				case "node_label":
+					if (labels[node.value]) {
+						warn('Label already defined in line ' + labels[node.value].line + ', ignoring this definition.', node.line);
+					} else if (_.regTable[node.value.toUpperCase()] >= 0) {
+						warn('"' + node.value + '" is a keyword. This label can not be referenced.', node.line);
+					} else {
+						labels[node.value] = {
+							line: node.line,
+							pc: pc
+						};
+					}
+					break;
+				case "node_directive":
+					switch(node.value.toLowerCase()) {
+					case "dat":
+					case "dw":
+						parameters = node.children[0];
+
+						for (i = 0; i < parameters.length; i++) {
+							tmp = parseTokens(parameters[i], false, false);
+
+							if (_.isArray(tmp)) {
+								emit(tmp[0]);
+							} else if (typeof tmp === 'string'){
+								for (j = 0; j < tmp.length; j++) {
+									emit(tmp.charCodeAt(j));
+								}
+							} else {
+								throw new ParserError('Unknown parameter "' + tmp + '" for dat.', node.line);
+							}
+						}
+						break;
+
+					// todo :/
+					case "equ":
+					case "eq":
+					case "if":
+					case "elseif":
+					case "else":
+					case "endif":
+					case "org":
+					case "macro":
+					case "nolist":
+					case "list":
+					case "dir_callmacro":
+						throw new ParserError('Not yet implemented.', node.line);
+						break;
+					default:
+						warn('Ignoring unknown directive "' + node.value + '".', node.line);
+						break;
+					}
+					break;
+				case "node_op":
+					if (_.opTable[node.value] >= 0) {
+						opcode = _.opTable[node.value];
+						parameters = node.children[0];
+
+console.log(node.value, parameters);
+						if ((opcode & 0x1f > 0 && parameters.length !== 2) || (opcode & 0x1f === 0 && parameters.length !== 1)) {
+							throw new ParserError('Invalid number of parameters.', node.line);
+						}
+						
+						oppc = pc;
+						emit(0);
+						
+						if (opcode & 0x1f > 0) {
+							// basic op
+							for (par = 0; par < 2; par++) {
+								tmp = parseTokens(parameters[par], false, false);
+								parval = 0;
+console.log('param', par, tmp);
+								if (parameters[par].value === 'val_deref') {
+									if (tmp[1] !== 0) {
+console.log('DER HANDLE REGISTER', par, tmp[1]);
+										parval = _.regTable[tmp[1]];
+										if (parval < 0x8) {
+											parval += 0x8;
+										}
+									} else {
+console.log('DER HANDLE ADDRESS', par, tmp[0]);
+										parval = 0x1e;
+										emit(tmp[0]);
+									}
+								} else {
+									if (tmp[1] !== 0) {
+console.log('LIT HANDLE REGISTER', par, tmp[1]);
+										parval = _.regTable[tmp[1]];
+									} else {
+console.log('LIT HANDLE ADDRESS', par, tmp[0]);
+										if (par === 1 && tmp[0] > -1 && tmp[0] < 30) {
+											parval = 0x21 + tmp[0];
+										} else {
+											parval = 0x1f;
+											emit(tmp[0]);
+										}
+									}
+								}
+
+console.log('parval', parval.toString(16));
+								// write parameter value to opcode
+								opcode |= ((parval & ((1 << (5 + par)) - 1)) << (5 + par * 5));
+							}
+console.log('op', oppc, bc.join(', '), opcode.toString(16));
+							
+							bc[oppc] = opcode;
+						} else {
+							// non basic op
+						}
+
+					} else {
+						throw new ParserError('Unknown operation "' + node.value + '".', node.line);
+					}
+					break;
+				case "node_value":
+					switch (node.value) {
+					case "val_paramlist":
+						result = [];
+						for (i = 0; i < node.children.length; i++) {
+							result.push(parseTokens(node.children[i], false, false));
+						}
+						break;
+					case "val_deref":
+						result = parseTokens(node.children[0], false, false);
+						break;
+					case "val_literal":
+						result = parseTokens(node.children[0], false, false);
+						break;
+					}
+					break;
+				case "val_register":
+					result = [0, node.value];
+					break;
+				case "val_identifier":
+					if (evalExpressions) {
+						result = [labels[node.value].pc, 0];
+					} else {
+						resolveLabels.push({
+							label: node.value,
+							pc: pc,
+							par: par,
+							line: node.line,
+							oppc: oppc
+						});
+						result = [0xDEAD, 0];
+					}
+					break;
+				case "val_number":
+					result = [node.value, 0];
+					break;
+				case "val_string":
+					if (evalExpressions) {
+						result = [node.value.length > 0 ? node.value.charCodeAt(0) : 0, 0];
+					} else {
+						result = node.value;
+					}
+					break;
+				case "node_comparison":
+					throw new ParserError('Not implemented', node.line);
+					break;
+				case "node_expression":
+					if (!evalExpressions) {
+						resolveExpressions.push({
+							expression: node,
+							pc: pc,
+							par: par,
+							line: node.line,
+							oppc: oppc
+						});
+						result = [0, 0];
+					} else {
+console.log('evaluate!');
+						tmp.push(parseTokens(node.children[0], false, true));
+						tmp.push(parseTokens(node.children[1], false, true));
+							
+						if (tmp[0][1] !== 0 && tmp[1][1] !== 0) {
+							throw new ParserError('Found multiple registers in one expressions.', node.line);
+						}
+						
+						if ((tmp[0][1] !== 0 || tmp[1][1] !== 0) && node.value !== '+') {
+							throw new ParserError('Registers inside expressions are allowed in sums only.', node.line);
+						}
+						
+						result = [0, 0];
+						
+						if (tmp[0][1] !== 0) {
+							result[1] = tmp[0][1];
+						}
+						
+						if (tmp[1][1] !== 0) {
+							result[1] = tmp[1][1];
+						}
+console.log('reg', result[1]);
+						switch (node.value) {
+						case "+":
+							result[0] = tmp[0][0] + tmp[1][0];
+							break;
+						case "-":
+							result[0] = tmp[0][0] - tmp[1][0];
+							break;
+						case "*":
+							result[0] = tmp[0][0] * tmp[1][0];
+							break;
+						case "/":
+							result[0] = tmp[0][0] / tmp[1][0];
+							break;
+						case "%":
+							result[0] = tmp[0][0] % tmp[1][0];
+							break;
+						case "&":
+							result[0] = tmp[0][0] & tmp[1][0];
+							break;
+						case "|":
+							result[0] = tmp[0][0] | tmp[1][0];
+							break;
+						case "^":
+							result[0] = tmp[0][0] ^ tmp[1][0];
+							break;
+						}
+					}
+					break;
+				}
+				
+				return result;
+			};
+	
+		options = options || {};
+		src = _.preprocess(src);
+		
+		try {
+			tokens = DCPU16.Parser.parse(src);
+
+			for (i = 0; i < tokens.length; i++) {
+				if (tokens[i].value !== 'nop') {
+					addr2line[pc] = tokens[i].line;
+					line2addr[tokens[i].line] = pc;
+				}
+				parseTokens(tokens[i], true, false);
+			}
+		} catch (e) {
+console.log(e, e.stack);
+			throw new ParserError(e.message, e.line);
+		}
+		
+		// labels and expressions
+		for (i = 0; i < resolveLabels.length; i++) {
+			tmp = resolveLabels[i];
+			
+			if (typeof labels[tmp.label] !== 'undefined') {
+				bc[tmp.pc] = labels[tmp.label].pc;
+			} else {
+				throw new ParserError('Can\'t find definition for label "' + tmp.label + '"', tmp.line);
+			}
+		}
+		
+		for (i = 0; i < resolveExpressions.length; i++) {
+			tmp = resolveExpressions[i];
+
+			par = parseTokens(tmp.expression, false, true);
+console.log('expr', par.join(','), tmp.line);
+			if (par[1] !== 0) {
+				// we have a register in here
+				oppc = par[1];
+				par[1] = _.regTable[par[1]];
+				
+console.log('the old bc', bc[tmp.oppc].toString(16), tmp.par, (((1 << (5 + (1 - tmp.par))) - 1) << (5 + tmp.par * 5)) | 0x1f);
+				// we have to delete the old parameter value
+				bc[tmp.oppc] &= (((1 << (5 + (1 - tmp.par))) - 1) << (5 + (1 - tmp.par) * 5)) | 0x1f;
+console.log('delete old bc', bc[tmp.oppc].toString(16), tmp.par);
+				
+				if (par[1] >= 0 && par[1] < 0x8) {
+					// it's a standard register
+					bc[tmp.oppc] |= (par[1] + 0x10) << (5 + tmp.par * 5);
+				} else if (par[1] === 0x1b) {
+					// it's SP
+					bc[tmp.oppc] |= 0x1b << (5 + tmp.par * 5);
+				} else {
+					throw new ParserError('The register "' + oppc + '" is not allowed in an expression.', tmp.line);
+				}
+			}
+
+			bc[tmp.pc] = par[0];
+console.log('insert data', pc, par[0]);
+console.log('the new bc', bc[tmp.oppc].toString(16));
+		}
+
+		for (i = 0; i < bc.length; i++) {
+			rom.push(bc[i] & 0xff);
+			rom.push((bc[i] >> 8) & 0xff);
+		}
+		
+		return {
+			bc: rom,
+			base: 0,
+			meta: {
+				warnings: warnings,
+				addr2line: addr2line,
+				line2addr: line2addr
+			},
+			labels: labels
+		};
+	}
+})();

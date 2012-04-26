@@ -204,7 +204,7 @@ var DCPU16 = (function () {
 								registers.push(_.registers[expression.children[i].value.toUpperCase()]);
 							} else if (labels[expression.children[i].value] >= 0) {
 								values.push(labels[expression.children[i].value] + baseAddress);
-							} else if (constants[expression.children[i].value] >= 0) {
+							} else if (constants[expression.children[i].value] >= 0 && constants[expression.children[i].value] !== null) {
 								values.push(constants[expression.children[i].value]);
 							} else {
 								throw new ParserError('Unresolved label or constant "' + expression.children[i].value + '"', line);
@@ -444,6 +444,7 @@ var DCPU16 = (function () {
 							
 							break;
 						case 'directive':
+							node.directive = node.directive.toLowerCase();
 							switch (node.directive) {
 							case 'org':
 								if (node.params.length > 0 && node.params[0].isNumber) {
@@ -454,10 +455,15 @@ var DCPU16 = (function () {
 							case 'dw':
 								handleDat(node);
 								break;
+							case 'define':
 							case 'eq':
 							case 'equ':
-								if (node.params.length > 1 && node.params[0].isString) {
-									constants[node.params[0].value] = node.params[1].isExpression ? evaluateExpression(node.params[1], false)[0] : node.params[1].value;
+								if (node.params.length > 0 && node.params[0].isString) {
+									if (node.params.length > 1) {
+										constants[node.params[0].value] = node.params[1].isExpression ? evaluateExpression(node.params[1], false)[0] : node.params[1].value;
+									} else {
+										constants[node.params[0].value] = null;
+									}
 								} else {
 									throw new ParserError('Not enough parameters.', line);
 								}

@@ -1,6 +1,7 @@
 <html>
 	<head>
 		<script type="text/javascript" src="src/dcpu16.js"></script>
+		<script type="text/javascript" src="src/asm.js"></script>
 		<script type="text/javascript" src="src/parser.js"></script>
 		<script type="text/javascript" src="src/base64.js"></script>
 		<script type="text/javascript" src="src/io-web.js"></script>
@@ -91,6 +92,7 @@
 				}
 				newPC();
 			} catch (e) {
+console.log(e, e.stack);
 				editor.getSession().removeMarker(marker);
 				assembly = null;
 				//console.log(e, e.stack);
@@ -431,7 +433,9 @@
 	
 	; Values can be labeled. Labeled values are not shortened but there will
 	; be some kind of assembler directive
-	SET A, :valuelabel 0x2000
+	; currently deactivated, sorry
+	;SET A, :valuelabel 0x2000
+	SET A, 0x2000
 :loop
 	SET [0x2000+I], [A]
 	SUB I, 1
@@ -454,7 +458,7 @@
     ; DAT is supported, too.
     ; You can use labels, numbers, expressions, and string literals here.
 :data
-	dat 0x170, "Hello, World!", 0x65, 73, "w0,,0t!", valuelabel, 0xDEAD+20
+	dat 0x170, "Hello, World!", 0x65, 73, "w0,,0t!", 0xDEAD+20 ;, valuelabel
 		</script>
 
 		<script type="text/dcpu-asm" id="example-1">
