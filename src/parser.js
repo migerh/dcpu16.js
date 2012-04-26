@@ -390,7 +390,7 @@ DCPU16.Parser = (function(){
           pos = pos1;
         }
         if (result0 !== null) {
-          result0 = (function(offset, name, params, code) { return node("node_directive", "macro", node.apply(this, ["node_value", "val_paramlist"].concat(params)), code);
+          result0 = (function(offset, name, params, code) { return node("node_directive", "macro", params, code);
             })(pos0, result0[4], result0[8], result0[16]);
         }
         if (result0 === null) {
@@ -465,8 +465,7 @@ DCPU16.Parser = (function(){
             pos = pos1;
           }
           if (result0 !== null) {
-            result0 = (function(offset, name, params) { return node("node_directive", "dir_callmacro", node.apply(this, ["node_value", "val_paramlist"].concat(params)));
-              })(pos0, result0[1], result0[5]);
+            result0 = (function(offset, name, params) { return node("node_directive", "dir_callmacro", params); })(pos0, result0[1], result0[5]);
           }
           if (result0 === null) {
             pos = pos0;
@@ -506,7 +505,7 @@ DCPU16.Parser = (function(){
               pos = pos1;
             }
             if (result0 !== null) {
-              result0 = (function(offset, d, params) { return node("node_directive", d, node.apply(this, ["node_value", "val_paramlist"].concat(params))); })(pos0, result0[1], result0[3]);
+              result0 = (function(offset, d, params) { return node("node_directive", d, params); })(pos0, result0[1], result0[3]);
             }
             if (result0 === null) {
               pos = pos0;
@@ -658,7 +657,7 @@ DCPU16.Parser = (function(){
           pos = pos1;
         }
         if (result0 !== null) {
-          result0 = (function(offset, plist) { return node("node_directive", "DAT", node.apply(this, ["node_value", "val_paramlist"].concat(plist))); })(pos0, result0[3]);
+          result0 = (function(offset, plist) { return node("node_directive", "DAT", plist); })(pos0, result0[3]);
         }
         if (result0 === null) {
           pos = pos0;
@@ -692,7 +691,7 @@ DCPU16.Parser = (function(){
             pos = pos1;
           }
           if (result0 !== null) {
-            result0 = (function(offset, op, plist) { return node("node_op", op.toUpperCase(), node.apply(this, ["node_value", "val_paramlist"].concat(plist))); })(pos0, result0[1], result0[3]);
+            result0 = (function(offset, op, plist) { return node("node_op", op.toUpperCase(), plist); })(pos0, result0[1], result0[3]);
           }
           if (result0 === null) {
             pos = pos0;

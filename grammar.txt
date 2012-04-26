@@ -74,14 +74,13 @@ statements
 
 stmt
   = ws ("." / "#") "macro"? ws name:label ws "(" ws params:paramlist ws ")" ws nl? "{" ws nl? code:statements ws "}" ws
-    { return node("node_directive", "macro", node.apply(this, ["node_value", "val_paramlist"].concat(params)), code);
+    { return node("node_directive", "macro", params, code);
     }
 
   / ws name:label ws "(" ws params:paramlist ws ")"
-    { return node("node_directive", "dir_callmacro", node.apply(this, ["node_value", "val_paramlist"].concat(params)));
-    }
+    { return node("node_directive", "dir_callmacro", params); }
   / ws d:directive ws params:wsparamlist ws
-    { return node("node_directive", d, node.apply(this, ["node_value", "val_paramlist"].concat(params))); }
+    { return node("node_directive", d, params); }
 
   / ws label:labeldef? ws cmd:cmd ws
     {
@@ -103,9 +102,9 @@ stmt
 
 cmd
   = ws "DAT"i ws plist:paramlist
-    { return node("node_directive", "DAT", node.apply(this, ["node_value", "val_paramlist"].concat(plist))); }
+    { return node("node_directive", "DAT", plist); }
   / ws op:op ws plist:paramlist
-    { return node("node_op", op.toUpperCase(), node.apply(this, ["node_value", "val_paramlist"].concat(plist))); }
+    { return node("node_op", op.toUpperCase(), plist); }
 
 paramlist
   = /* no value labels for now label:labeldef?*/ ws v:param ws "," ws l:paramlist
