@@ -14,6 +14,10 @@
   var tmp;
   var i;
 
+  var regTable = {'A': 1, 'B': 1, 'C': 1, 'X': 1, 'Y': 1, 'Z': 1,
+                  'I': 1, 'J': 1, 'SP': 1, 'PC': 1, 'EX': 1, 'IA': 1,
+                  'POP': 1, 'PUSH': 1, 'PEEK': 1, 'PICK': 1};
+
   var isArray = function (val) {
     return typeof val === "object" && 'splice' in val && 'join' in val;
   };
@@ -32,6 +36,22 @@
 
     return node;
   };
+
+  var expressionNode = function (left, right) {
+    var tmp, i;
+
+    if (right.length === 0) {
+      return left;
+    }
+
+    tmp = right[right.length - 1][2];
+
+    for (i = right.length - 2; i >= 0; i--) {
+      tmp = node("node_expression", right[i + 1][0], right[i][2], tmp);
+    }
+
+    return node("node_expression", right[0][0], left, tmp);
+  }
 }
 
 start
@@ -57,6 +77,9 @@ stmt
     { return node("node_directive", "macro", node.apply(this, ["node_value", "val_paramlist"].concat(params)), code);
     }
 
+  / ws name:label ws "(" ws params:paramlist ws ")"
+    { return node("node_directive", "dir_callmacro", node.apply(this, ["node_value", "val_paramlist"].concat(params)));
+    }
   / ws d:directive ws params:wsparamlist ws
     { return node("node_directive", d, node.apply(this, ["node_value", "val_paramlist"].concat(params))); }
 
@@ -79,8 +102,10 @@ stmt
 
 
 cmd
-  = ws op:op ws plist:paramlist
-    { return node("node_op", op, node.apply(this, ["node_value", "val_paramlist"].concat(plist))); }
+  = ws "DAT"i ws plist:paramlist
+    { return node("node_directive", "DAT", node.apply(this, ["node_value", "val_paramlist"].concat(plist))); }
+  / ws op:op ws plist:paramlist
+    { return node("node_op", op.toUpperCase(), node.apply(this, ["node_value", "val_paramlist"].concat(plist))); }
 
 paramlist
   = /* no value labels for now label:labeldef?*/ ws v:param ws "," ws l:paramlist
@@ -115,7 +140,7 @@ wsparamlist
     }
 
 param "parameter"
-  = "[" ws m:"--"? ws "SP" ws p:"++"? ws "]"
+  = "[" ws m:"--"? ws "SP"i ws p:"++"? ws "]"
     {
       tmp = "PEEK";
       if (m === '--' && p === '') {
@@ -124,55 +149,54 @@ param "parameter"
         tmp = "POP";
       }
 
-      return node("node_value", "val_deref", node("val_identifier", tmp));
+      return node("node_value", "val_deref", node("val_register", tmp));
     }
-  / "[" v:additive "]"
+  / "[" v:bit "]"
     { return node("node_value", "val_deref", v); }
-  / v:additive
+  / v:bit
     {
       return node("node_value", "val_literal", v);
     }
+comp
+  = left:bool ws op:("<=" / "<" / "==" / ">=" / ">") ws right:bool
+    { return node("node_comparison", op, left, right); }
+
+bool
+  = left:bit ws right:(("&&" / "||") ws bit ws)*
+    { return expressionNode(left, right); }
+
+bit
+  = left:shift ws right:(("&" / "|" / "^") ws shift ws)*
+    { return expressionNode(left, right); }
+
+shift
+  = left:additive ws right:(("<<" / ">>") ws additive ws)*
+    { return expressionNode(left, right); }
 
 additive
   = left:multiplicative ws right:(("+" / "-") ws multiplicative ws)*
-    {
-      if (right.length === 0) {
-        return left;
-      }
-
-      tmp = right[right.length - 1][2];
-
-      for (i = right.length - 2; i >= 0; i--) {
-        tmp = node("node_expression", right[i + 1][0], right[i][2], tmp);
-      }
-
-      return node("node_expression", right[0][0], left, tmp);
-    }
+    { return expressionNode(left, right); }
 
 multiplicative
-  = left:value ws right:(("*" / "/") ws value ws)*
-    {
-      if (right.length === 0) {
-        return left;
-      }
-
-      tmp = right[right.length - 1];
-
-      for (i = right.length - 2; i >= 0; i--) {
-        tmp = node("node_expression", right[i + 1][0], right[i][2], tmp);
-      }
-
-      return node("node_expression", right[0][0], left, tmp);
-    }
+  = left:value ws right:(("*" / "/" / "%") ws value ws)*
+    { return expressionNode(left, right); }
 
 value
   = v:number
     { return node("val_number", v); }
+/*  / v:register
+    { return node("val_register", v); }*/
   / v:label
-    { return node("val_identifier", v); }
+    {
+      if (regTable[v.toUpperCase()]) {
+        return node("val_register", v);
+      } else {
+        return node("val_identifier", v);
+      }
+    }
   / "\"" v:strliteral "\""
     { return node("val_string", v); }
-  / "(" ws v:additive ws ")"
+  / "(" ws v:bit ws ")"
     { return v; }
 
 
@@ -201,8 +225,12 @@ label "label"
   = label:([a-zA-Z0-9_\.]+)
     { return label.join(''); }
 
+register "register"
+  = reg:("SP"i/"PC"i/"EX"i/"IA"i/"PUSH"i/"POP"i/[A-CX-ZIJ]i)
+    { return isArray(reg) ? reg.join('').toUpperCase() : reg.toUpperCase(); }
+
 op "operator"
-  = op:([a-zA-Z][a-zA-Z][a-zA-Z])
+  = op:([A-Z]i[A-Z]i[A-Z]i)
     { return op.join('').toUpperCase(); }
 
 directive "directive"
@@ -219,7 +247,7 @@ comment
   = ";" [^\n\r]*
 
 ws "whitespace"
-  = " "*
+  = (" " / "\t")*
 
 nl "newline"
   = "\n" ws { line++; }
