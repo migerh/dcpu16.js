@@ -78,11 +78,11 @@
 			
 			try {
 				assembly = DCPU16.asm(src);
-				for (i = 0; i < assembly.meta.warnings.length; i++) {
+				for (i = 0; i < assembly.warnings.length; i++) {
 					ann.push({
-						row: assembly.meta.warnings[i].line-1,
+						row: assembly.warnings[i].line-1,
 						column: 0,
-						text: assembly.meta.warnings[i].message,
+						text: assembly.warnings[i].message,
 						type: 'warning'
 					});
 				}
@@ -140,7 +140,7 @@ console.log(e, e.stack);
 				return;
 			}
 
-			markLine(assembly.meta.addr2line[PC.ram.PC - assembly.base]);
+			markLine(assembly.addr2line[PC.ram.PC - assembly.base]);
 			out.push('A  = ' + printValue(PC.ram.A) + '    ');
 			out.push('B  = ' + printValue(PC.ram.B) + '<br />');
 			out.push('C  = ' + printValue(PC.ram.C) + '    ');
@@ -217,7 +217,7 @@ console.log(e, e.stack);
 				file,
 				callback = function (data) {
 					var i;
-					if (data.meta.status === 200) {
+					if (data.status === 200) {
 						if (data.data.files[params[1]]) {
 							file = params[1];
 						} else {
@@ -265,11 +265,11 @@ console.log(e, e.stack);
 			
 			var curline = editor.getSession().getSelection().getCursor().row + 1,
 				totallines = editor.getSession().getValue().split("\n").length,
-				start = assembly.meta.line2addr[curline] + assembly.base,
+				start = assembly.line2addr[curline] + assembly.base,
 				end, i;
 			
 			for (i = curline + 1; i < totallines; i++) {
-				if (end = assembly.meta.line2addr[i] + assembly.base) {
+				if (end = assembly.line2addr[i] + assembly.base) {
 					break;
 				}
 			}
@@ -284,15 +284,15 @@ console.log(e, e.stack);
 			var line = $(e.toElement),
 				lineNumber = line.html().match(/\d*$/);
 			
-			if (assembly.meta.line2addr[lineNumber] + assembly.base) {
-				line.html((PC.toggleBreakpoint(assembly.meta.line2addr[lineNumber] + assembly.base) ? '<span style="color: red; font-weight: bolder;">&bull;</span> ' : '') + lineNumber);
+			if (assembly.line2addr[lineNumber] + assembly.base) {
+				line.html((PC.toggleBreakpoint(assembly.line2addr[lineNumber] + assembly.base) ? '<span style="color: red; font-weight: bolder;">&bull;</span> ' : '') + lineNumber);
 			}
 		});
 		
 		$('#src > .ace_sb').on('scroll', function (e) {
 			$('#src div.ace_gutter-cell').each(function (i, line) {
 				var lineNumber = $(line).html().match(/\d*$/),
-					lineAddr = assembly.meta.line2addr[lineNumber] + assembly.base;
+					lineAddr = assembly.line2addr[lineNumber] + assembly.base;
 					
 				if (PC.breakpoints[lineAddr]) {
 					$(line).html('<span style="color: red; font-weight: bolder;">&bull;</span> ' + lineNumber);

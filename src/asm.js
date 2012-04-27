@@ -41,11 +41,10 @@ var DCPU16 = DCPU16 || {};
 				// TODO: get rid of the arithmetics
 				'JSR': 0x1 << 5,
 				
-				'HCF': 0x7 << 5,
 				'INT': 0x8 << 5,
 				'IAG': 0x9 << 5,
 				'IAS': 0xa << 5,
-				'IAP': 0xb << 5,
+				'RFI': 0xb << 5,
 				'IAQ': 0xc << 5,
 				
 				'HWN': 0x10 << 5,
@@ -227,7 +226,7 @@ var DCPU16 = DCPU16 || {};
 						opcode = _.opTable[node.value];
 						parameters = node.children[0];
 
-console.log(node.value, parameters);
+console.log(node.value, parameters, opcode.toString(16));
 						if ((opcode & 0x1f > 0 && parameters.length !== 2) || (opcode & 0x1f === 0 && parameters.length !== 1)) {
 							throw new ParserError('Invalid number of parameters.', node.line);
 						}
@@ -240,25 +239,21 @@ console.log(node.value, parameters);
 							for (par = 0; par < 2; par++) {
 								tmp = parseTokens(parameters[par], false, false);
 								parval = 0;
-console.log('param', par, tmp);
+
 								if (parameters[par].value === 'val_deref') {
 									if (tmp[1] !== 0) {
-console.log('DER HANDLE REGISTER', par, tmp[1]);
 										parval = _.regTable[tmp[1]];
 										if (parval < 0x8) {
 											parval += 0x8;
 										}
 									} else {
-console.log('DER HANDLE ADDRESS', par, tmp[0]);
 										parval = 0x1e;
 										emit(tmp[0]);
 									}
 								} else {
 									if (tmp[1] !== 0) {
-console.log('LIT HANDLE REGISTER', par, tmp[1]);
 										parval = _.regTable[tmp[1]];
 									} else {
-console.log('LIT HANDLE ADDRESS', par, tmp[0]);
 										if (par === 1 && tmp[0] > -1 && tmp[0] < 30) {
 											parval = 0x21 + tmp[0];
 										} else {
@@ -267,18 +262,43 @@ console.log('LIT HANDLE ADDRESS', par, tmp[0]);
 										}
 									}
 								}
-
-console.log('parval', parval.toString(16));
 								// write parameter value to opcode
 								opcode |= ((parval & ((1 << (5 + par)) - 1)) << (5 + par * 5));
 							}
-console.log('op', oppc, bc.join(', '), opcode.toString(16));
-							
-							bc[oppc] = opcode;
 						} else {
 							// non basic op
-						}
+							par = 1;
 
+							tmp = parseTokens(parameters[0], false, false);
+							parval = 0;
+
+							if (parameters[0].value === 'val_deref') {
+								if (tmp[1] !== 0) {
+									parval = _.regTable[tmp[1]];
+									if (parval < 0x8) {
+										parval += 0x8;
+									}
+								} else {
+									parval = 0x1e;
+									emit(tmp[0]);
+								}
+							} else {
+								if (tmp[1] !== 0) {
+									parval = _.regTable[tmp[1]];
+								} else {
+									if (par === 1 && tmp[0] > -1 && tmp[0] < 30) {
+										parval = 0x21 + tmp[0];
+									} else {
+										parval = 0x1f;
+										emit(tmp[0]);
+									}
+								}
+							}
+							// write parameter value to opcode
+							opcode |= ((parval & 0x3f) << 10);
+						}
+						
+						bc[oppc] = opcode;
 					} else {
 						throw new ParserError('Unknown operation "' + node.value + '".', node.line);
 					}
@@ -338,7 +358,7 @@ console.log('op', oppc, bc.join(', '), opcode.toString(16));
 							line: node.line,
 							oppc: oppc
 						});
-						result = [0, 0];
+						result = [0xDEAD, 0];
 					} else {
 console.log('evaluate!');
 						tmp.push(parseTokens(node.children[0], false, true));
@@ -428,16 +448,13 @@ console.log(e, e.stack);
 			tmp = resolveExpressions[i];
 
 			par = parseTokens(tmp.expression, false, true);
-console.log('expr', par.join(','), tmp.line);
 			if (par[1] !== 0) {
 				// we have a register in here
 				oppc = par[1];
 				par[1] = _.regTable[par[1]];
 				
-console.log('the old bc', bc[tmp.oppc].toString(16), tmp.par, (((1 << (5 + (1 - tmp.par))) - 1) << (5 + tmp.par * 5)) | 0x1f);
 				// we have to delete the old parameter value
 				bc[tmp.oppc] &= (((1 << (5 + (1 - tmp.par))) - 1) << (5 + (1 - tmp.par) * 5)) | 0x1f;
-console.log('delete old bc', bc[tmp.oppc].toString(16), tmp.par);
 				
 				if (par[1] >= 0 && par[1] < 0x8) {
 					// it's a standard register
@@ -451,8 +468,6 @@ console.log('delete old bc', bc[tmp.oppc].toString(16), tmp.par);
 			}
 
 			bc[tmp.pc] = par[0];
-console.log('insert data', pc, par[0]);
-console.log('the new bc', bc[tmp.oppc].toString(16));
 		}
 
 		for (i = 0; i < bc.length; i++) {
@@ -463,11 +478,9 @@ console.log('the new bc', bc[tmp.oppc].toString(16));
 		return {
 			bc: rom,
 			base: 0,
-			meta: {
-				warnings: warnings,
-				addr2line: addr2line,
-				line2addr: line2addr
-			},
+			warnings: warnings,
+			addr2line: addr2line,
+			line2addr: line2addr,
 			labels: labels
 		};
 	}
