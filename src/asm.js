@@ -82,50 +82,10 @@ var DCPU16 = DCPU16 || {};
 				// eliminate tabs
 				return src.replace(/\t/g, " ");
 			},
-			def: function (val, def) {
-				if (typeof val == 'undefined' || typeof val == 'null') {
-					return def;
-				}
-				
-				return val;
-			},
-			printHex: function (v, w) {
-				var r = v.toString(16), i;
-				
-				w = _.def(w, 0);
-				
-				for (i = r.length; i < w; i++) {
-					r = '0' + r;
-				}
-				
-				return '0x' + r;
-			},
 
 			isArray: function (val) {
 				return typeof val === "object" && 'splice' in val && 'join' in val;
-			},
-
-			trim: function (str) {
-				str = str.replace(/^\s+/, "");
-				str = str.replace(/\s+$/, "");
-
-				return str;
-			},
-			parseInt: function (str) {
-				var r;
-			
-				str = _.trim(str);
-			
-				if (str.match(/^0x/)) {
-					r = parseInt(str, 16);
-				} else if (str[0] === '0') {
-					r = parseInt(str, 8);
-				} else {
-					r = parseInt(str, 10);
-				}
-			
-				return r;
-			},
+			}
 		}, // end of definition of _
 		
 		ParserError = function (msg, line) {
@@ -226,17 +186,16 @@ var DCPU16 = DCPU16 || {};
 						opcode = _.opTable[node.value];
 						parameters = node.children[0];
 
-console.log(node.value, parameters, opcode.toString(16));
 						if ((opcode & 0x1f > 0 && parameters.length !== 2) || (opcode & 0x1f === 0 && parameters.length !== 1)) {
 							throw new ParserError('Invalid number of parameters.', node.line);
 						}
-						
+
 						oppc = pc;
 						emit(0);
-						
-						if (opcode & 0x1f > 0) {
+
+						if ((opcode & 0x1f) > 0) {
 							// basic op
-							for (par = 0; par < 2; par++) {
+							for (par = 1; par >= 0; par--) {
 								tmp = parseTokens(parameters[par], false, false);
 								parval = 0;
 
@@ -254,7 +213,7 @@ console.log(node.value, parameters, opcode.toString(16));
 									if (tmp[1] !== 0) {
 										parval = _.regTable[tmp[1]];
 									} else {
-										if (par === 1 && tmp[0] > -1 && tmp[0] < 30) {
+										if (par === 1 && tmp[0] >= -1 && tmp[0] < 30) {
 											parval = 0x21 + tmp[0];
 										} else {
 											parval = 0x1f;
@@ -360,7 +319,6 @@ console.log(node.value, parameters, opcode.toString(16));
 						});
 						result = [0xDEAD, 0];
 					} else {
-console.log('evaluate!');
 						tmp.push(parseTokens(node.children[0], false, true));
 						tmp.push(parseTokens(node.children[1], false, true));
 							
@@ -381,7 +339,7 @@ console.log('evaluate!');
 						if (tmp[1][1] !== 0) {
 							result[1] = tmp[1][1];
 						}
-console.log('reg', result[1]);
+
 						switch (node.value) {
 						case "+":
 							result[0] = tmp[0][0] + tmp[1][0];
@@ -429,7 +387,6 @@ console.log('reg', result[1]);
 				parseTokens(tokens[i], true, false);
 			}
 		} catch (e) {
-console.log(e, e.stack);
 			throw new ParserError(e.message, e.line);
 		}
 		
@@ -484,4 +441,9 @@ console.log(e, e.stack);
 			labels: labels
 		};
 	}
+	
+	if (typeof TestCase !== 'undefined') {
+		DCPU16.ParserError = ParserError;
+	}
+
 })();

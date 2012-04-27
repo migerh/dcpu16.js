@@ -24,7 +24,7 @@ TestCase("Set", {
 			'SET A, 0x4000\n' +
 			'SET [A], 5\n' +
 			
-			':halt SET PC, halt';
+			'SUB PC, 1';
 
 		this.cpu.load(DCPU16.asm(src).bc);
 		this.cpu.steps(20);
@@ -77,7 +77,7 @@ TestCase("Set", {
    		
 			':halt SET PC, halt';
 
-		assertException('expression values are not allowed', function () { this.cpu.load(DCPU16.asm(src).bc); }, DCPU16._.ParserError());
+		assertException('expression values are not allowed', function () { this.cpu.load(DCPU16.asm(src).bc); }, DCPU16.ParserError());
 	}
 	
 });

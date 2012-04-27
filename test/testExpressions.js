@@ -103,13 +103,13 @@ TestCase("Expressions", {
 		expectAsserts(1);
 
 		var src =
-			'SET X, 0x8000 + 32 * 2 + 2\n'
+			'SET X, 0x8000 + 32 * 2 + 2\n' +
 			
 			':halt SET PC, halt';
 
 		this.cpu.load(DCPU16.asm(src).bc);
 		this.cpu.steps(20);
-		
+
 		assertEquals('whitespaces', 32834, this.cpu.ram.X);
 	}
 	

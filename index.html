@@ -1,7 +1,8 @@
 <html>
 	<head>
-		<script type="text/javascript" src="src/dcpu16.js"></script>
+		<script type="text/javascript" src="src/common.js"></script>
 		<script type="text/javascript" src="src/asm.js"></script>
+		<script type="text/javascript" src="src/emulator.js"></script>
 		<script type="text/javascript" src="src/parser.js"></script>
 		<script type="text/javascript" src="src/base64.js"></script>
 		<script type="text/javascript" src="src/io-web.js"></script>
@@ -43,8 +44,8 @@
 <button onclick="gotoRam();">Go to</button> <input type="text" value="0" id="jumpto" />
 <button onclick="gotoRam('SP');" onmouseover="highlightRam('SP');" onmousemove="highlightRam('SP');" onmouseout="highlightRam('none');">SP</button>
 <button onclick="gotoRam('PC');" onmouseover="highlightRam('PC');" onmousemove="highlightRam('PC');" onmouseout="highlightRam('none');">PC</button><br />
-<pre id="ram" style="margin-top: 0; width: 400px; height: 170px; font-size: 14px; overflow-x: hidden; overflow-y: scrollbar; float: left;"></pre>
-<pre id="status" style="margin-left: 410px; width: 200px; height: 400px;"></pre>
+<pre id="ram" style="margin-top: 0; width: 520px; height: 170px; font-size: 14px; overflow-x: hidden; overflow-y: scrollbar; float: left;"></pre>
+<pre id="status" style="margin-left: 530px; width: 200px; height: 400px;"></pre>
 
 <script type="text/javascript">
 	var PC, assembly, editor, marker, lastUpdate = 0, canvas,
@@ -61,7 +62,7 @@
 		},
 		newPC = function () {
 			if (assembly) {
-				PC = new DCPU16.PC(canvas);
+				PC = new DCPU16.PC();
 				PC.load(assembly.bc, assembly.base);
 				$('#jumpto').val(DCPU16.printHex(assembly.base));
 				PC.ram.PC = assembly.base;
@@ -113,7 +114,6 @@ console.log(e, e.stack);
 			printStatus();
 		},
 		start = function () {
-			PC.clearInputBuffer();
 			PC.start();
 			printStatus(true);
 		},
@@ -123,16 +123,6 @@ console.log(e, e.stack);
 		_clear = function () {
 			newPC();
 		},
-		printValue = function (v) {
-			var r = v.toString(16),
-				i, l = 4;
-			
-			for (i = r.length; i < l; i++) {
-				r = '0' + r;
-			}
-				
-			return r;
-		},
 		printStatus = function (timeout) {
 			var out = [];
 			
@@ -141,22 +131,22 @@ console.log(e, e.stack);
 			}
 
 			markLine(assembly.addr2line[PC.ram.PC - assembly.base]);
-			out.push('A  = ' + printValue(PC.ram.A) + '    ');
-			out.push('B  = ' + printValue(PC.ram.B) + '<br />');
-			out.push('C  = ' + printValue(PC.ram.C) + '    ');
-			out.push('X  = ' + printValue(PC.ram.X) + '<br />');
-			out.push('Y  = ' + printValue(PC.ram.Y) + '    ');
-			out.push('Z  = ' + printValue(PC.ram.Z) + '<br />');
-			out.push('I  = ' + printValue(PC.ram.I) + '    ');
-			out.push('J  = ' + printValue(PC.ram.J) + '<br /><br />');
+			out.push('A  = ' + DCPU16.printHex(PC.ram.A) + '    ');
+			out.push('B  = ' + DCPU16.printHex(PC.ram.B) + '<br />');
+			out.push('C  = ' + DCPU16.printHex(PC.ram.C) + '    ');
+			out.push('X  = ' + DCPU16.printHex(PC.ram.X) + '<br />');
+			out.push('Y  = ' + DCPU16.printHex(PC.ram.Y) + '    ');
+			out.push('Z  = ' + DCPU16.printHex(PC.ram.Z) + '<br />');
+			out.push('I  = ' + DCPU16.printHex(PC.ram.I) + '    ');
+			out.push('J  = ' + DCPU16.printHex(PC.ram.J) + '<br /><br />');
 
-			out.push('PC = ' + printValue(PC.ram.PC) + '    ');
-			out.push('SP = ' + printValue(PC.ram.SP) + '<br />');
-			out.push('O  = ' + printValue(PC.ram.O) + '<br /><br />');
+			out.push('PC = ' + DCPU16.printHex(PC.ram.PC) + '    ');
+			out.push('SP = ' + DCPU16.printHex(PC.ram.SP) + '<br />');
+			out.push('EX  = ' + DCPU16.printHex(PC.ram.EX) + '<br /><br />');
 			out.push('Stack: <br />');
 			if (PC.ram.SP > 0xFF00) {
 				for (i = PC.ram.SP; i < 0x10000; i++ ) {
-					out.push('[' + printValue(PC.getWord(i)) + ']<br />');
+					out.push('[' + DCPU16.printHex(PC.getWord(i)) + ']<br />');
 				}
 			}
 			
@@ -175,10 +165,10 @@ console.log(e, e.stack);
 			var i, ram = [];
 			for (i = 0; i < 80; i++) {
 				if (i%8 === 0) {
-					ram.push((i !== 0 ? '</span>\n' : '') + '<span id="ram-line-' + ((offset + i)/8) + '" class="ram-line">' + printValue(offset + i) + '  ');
+					ram.push((i !== 0 ? '</span>\n' : '') + '<span id="ram-line-' + ((offset + i)/8) + '" class="ram-line">' + DCPU16.printHex(offset + i) + '  ');
 				}
 				
-				ram.push('<span id="ram-word-' + (offset + i) + '" class="ram-word">' + printValue(PC.getWord(offset + i)) + '</span>');
+				ram.push('<span id="ram-word-' + (offset + i) + '" class="ram-word">' + DCPU16.printHex(PC.getWord(offset + i)) + '</span>');
 			}
 			$('#ram').html(ram.join(' '));
 		},
@@ -311,7 +301,7 @@ console.log(e, e.stack);
 				};
 			
 			if (assembly) {
-				PC.pressKey(remap[code] || code);
+				//PC.pressKey(remap[code] || code);
 			}
 		});
 		

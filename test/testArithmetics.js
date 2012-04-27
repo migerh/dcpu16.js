@@ -24,7 +24,7 @@ TestCase("Arithmetics", {
 			'ADD C, 5\n' +
 			'SET B, C\n' +
 			'ADD B, 0xffff\n' +
-			'SET Z, O\n' +
+			'SET Z, EX\n' +
 			
 			':halt SET PC, halt';
 
@@ -48,7 +48,7 @@ TestCase("Arithmetics", {
 			'SUB C, 5\n' +
 			'SET B, C\n' +
 			'SUB B, 20\n' +
-			'SET Z, O\n' +
+			'SET Z, EX\n' +
 			
 			':halt SET PC, halt';
 
@@ -72,7 +72,7 @@ TestCase("Arithmetics", {
 			'MUL C, 42\n' +
 			'SET B, C\n' +
 			'MUL B, 1337\n' +
-			'SET Z, O\n' +
+			'SET Z, EX\n' +
 			
 			':halt SET PC, halt';
 			
@@ -95,10 +95,10 @@ TestCase("Arithmetics", {
 			'DIV A, C\n' +
 			'SET C, 0x1234\n' +
 			'DIV C, 0x123\n' +
-			'SET Z, O\n' +
+			'SET Z, EX\n' +
 			'SET B, C\n' +
 			'DIV B, 0\n' +
-			'SET Y, O\n' +
+			'SET Y, EX\n' +
 			
 			':halt SET PC, halt';
 
@@ -142,9 +142,9 @@ TestCase("Arithmetics", {
 			'SET A, 0x1234\n' +
 			'SET C, 10\n' +
 			'SHL A, C\n' +
-			'SET X, O\n' +
+			'SET X, EX\n' +
 			'SHL C, 6\n' +
-			'SET Y, O\n' +
+			'SET Y, EX\n' +
 			
 			':halt SET PC, halt';
 
@@ -165,9 +165,9 @@ TestCase("Arithmetics", {
 			'SET A, 0x1234\n' +
 			'SET C, 10\n' +
 			'SHR A, C\n' +
-			'SET X, O\n' +
+			'SET X, EX\n' +
 			'SHR C, 6\n' +
-			'SET Y, O\n' +
+			'SET Y, EX\n' +
 			
 			':halt SET PC, halt';
 
