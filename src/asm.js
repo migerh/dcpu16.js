@@ -74,10 +74,6 @@ var DCPU16 = DCPU16 || {};
 				'IA': 0xff
 			},
 			
-			maxWord: 0xffff,
-			ramSize: 0x10000,
-			wordSize: 2,
-			
 			preprocess: function (src) {
 				// eliminate tabs
 				return src.replace(/\t/g, " ");
@@ -121,7 +117,7 @@ var DCPU16 = DCPU16 || {};
 			
 			// parsing and generating
 			emit = function (value) {
-				bc.push(value & _.maxWord);
+				bc.push(value & DCPU16.maxWord);
 				pc++;
 			},
 			
@@ -186,7 +182,7 @@ var DCPU16 = DCPU16 || {};
 						opcode = _.opTable[node.value];
 						parameters = node.children[0];
 
-						if ((opcode & 0x1f > 0 && parameters.length !== 2) || (opcode & 0x1f === 0 && parameters.length !== 1)) {
+						if (((opcode & 0x1f) > 0 && parameters.length !== 2) || ((opcode & 0x1f) === 0 && parameters.length !== 1)) {
 							throw new ParserError('Invalid number of parameters.', node.line);
 						}
 

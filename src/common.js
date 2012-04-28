@@ -2,6 +2,9 @@
 var DCPU16 = DCPU16 || {};
 
 (function () {
+	DCPU16.maxWord = 0xffff;
+	DCPU16.ramSize = 0x10000;
+
 	DCPU16.trim = function (str) {
 		str = str.replace(/^\s+/, "");
 		str = str.replace(/\s+$/, "");

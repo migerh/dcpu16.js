@@ -3,10 +3,6 @@ var DCPU16 = DCPU16 || {};
 
 (function () {
 	var _ = {
-		ramSize: 0x10000,
-		wordSize: 2,
-		maxWord: 0xffff,
-		
 		registers: {A: 0x0, B: 0x1, C: 0x2, X: 0x3, Y: 0x4, Z: 0x5, I: 0x6, J: 0x7},
 		registers_rev: ['A', 'B', 'C', 'X', 'Y', 'Z', 'I', 'J'],
 		values_rev: [],
@@ -26,9 +22,8 @@ var DCPU16 = DCPU16 || {};
 	_.values_rev[0x1a] = 'PICK';
 
 	DCPU16.PC = function (rom) {
-		this.ramSize = _.ramSize;
-		this.wordSize = _.wordSize;
-		this.maxWord = _.maxWord;
+		this.ramSize = DCPU16.ramSize;
+		this.maxWord = DCPU16.maxWord;
 		this.skipNext = false;
 		this.isRunning = false;
 		this.stepCount = 0;

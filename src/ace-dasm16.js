@@ -28,12 +28,13 @@ var Dasm16HighlightRules = function() {
 
     //this.$rules = new TextHighlightRules().getRules();
     var keywords = lang.arrayToMap(
-        ("SET|ADD|SUB|MUL|DIV|MOD|SHL|SHR|AND|BOR|XOR|" +
-        "IFE|IFN|IFG|IFB|DAT|MOV").split("|")
+        ("SET|ADD|SUB|MUL|MLI|DIV|DVI|MOD|MDI|SHL|SHR|ASR|AND|BOR|XOR|" +
+        "IFB|IFC|IFE|IFN|IFG|IFA|IFL|IFU|ADX|SBX|STI|STD|DAT|MOV|" +
+        "JSR|INT|IAG|IAS|RFI|IAQ|HWN|HWQ|HWI").split("|")
     );
     
     var buildinConstants = lang.arrayToMap(
-        ("A|B|C|X|Y|Z|I|J|PC|SP|O|PUSH|POP|PEEK").split("|")
+        ("A|B|C|X|Y|Z|I|J|PC|SP|EX|PUSH|POP|PEEK|PICK").split("|")
     );
     
      var identifierRe = "[" + unicode.packages.L + "\\$_][" 
@@ -46,6 +47,12 @@ var Dasm16HighlightRules = function() {
     	start: [{
                 token : "comment",
                 regex : ";.*$"
+            }, {
+                token : "directive",
+                regex : "#.*$"
+            }, {
+                token : "directive",
+                regex : "\\..*$"
             }, {
                 token : "constant.numeric", // hex
                 regex : "0[xX][0-9a-fA-F]+\\b"
