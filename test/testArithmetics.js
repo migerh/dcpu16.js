@@ -34,7 +34,7 @@ TestCase("Arithmetics", {
 		assertEquals('add registers', 7, this.cpu.ram.A);
 		assertEquals('add value', 9, this.cpu.ram.C);
 		assertEquals('overflow', 8, this.cpu.ram.B);
-		assertEquals('overflow flag', 1, this.cpu.ram.Z);
+		assertEquals('carry flag', 1, this.cpu.ram.Z);
 	},
 
 	testSub: function () {
@@ -57,8 +57,8 @@ TestCase("Arithmetics", {
 		
 		assertEquals('sub registers', 13, this.cpu.ram.A);
 		assertEquals('sub value', 5, this.cpu.ram.C);
-		assertEquals('overflow', 0xfff0, this.cpu.ram.B);
-		assertEquals('overflow flag', 0xffff, this.cpu.ram.Z);
+		assertEquals('underflow', 0xfff1, this.cpu.ram.B);
+		assertEquals('carry flag', 0xffff, this.cpu.ram.Z);
 	},
 	
 	testMul: function () {
@@ -311,15 +311,16 @@ TestCase("Arithmetics", {
 
 		var src =
 			'SET A, 0x1234\n' +
-			'SET C, 0x4321\n' +
-			'XOR A, C\n' +
+			'SET C, 0xffff\n' +
+			'ADD A, C\n' +
+			'ADX A, C\n' +
 			
-			':halt SET PC, halt';
+			'SUB PC, 1';
 
 		this.cpu.load(DCPU16.asm(src).bc);
 		this.cpu.steps(20);
 		
-		assertEquals('xor registers', 0x5115, this.cpu.ram.A);
+		assertEquals('adx 1234, ffff, EX = 1', 0x1233, this.cpu.ram.A);
 	},
 
 	testSBX: function () {
@@ -327,14 +328,32 @@ TestCase("Arithmetics", {
 
 		var src =
 			'SET A, 0x1234\n' +
-			'SET C, 0x4321\n' +
-			'XOR A, C\n' +
+			'SET C, 0xffff\n' +
+			'SUB A, C\n' +
+			'SBX A, C\n' +
 			
-			':halt SET PC, halt';
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+
+		assertEquals('sbx 1234, ffff, EX = ffff', 0x1235, this.cpu.ram.A);
+	},
+	
+	testSubFFFF: function () {
+		expectAsserts(1);
+
+		// if the source is changed, adjust the expected value marked below
+		var src =
+			'SET A, 23\n' +
+			'SET C, 0xffff\n' +
+			'SUB A, C\n' +
+			
+			'SUB PC, 1';
 
 		this.cpu.load(DCPU16.asm(src).bc);
 		this.cpu.steps(20);
 		
-		assertEquals('xor registers', 0x5115, this.cpu.ram.A);
+		assertEquals('sub ffff', 24, this.cpu.ram.A);
 	}
 });

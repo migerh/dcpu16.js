@@ -162,6 +162,9 @@ var DCPU16 = DCPU16 || {};
 			
 		this.exec = function (op, a, b) {
 			var tmp, addrA, valB, valA;
+			
+			// because of historical reason in here valA/addrA is in the
+			// current 1.7 spec is called 'b' and valB is called 'a' in the spec.
 
 			valB = this.getValue(a, 0);
 			if (op >= 0x10 && op <= 0x17) {
@@ -239,7 +242,7 @@ var DCPU16 = DCPU16 || {};
 				this.ram.EX = 0;
 				if (tmp < 0) {
 					this.ram.EX = this.maxWord;
-					tmp = this.maxWord + tmp;
+					tmp = this.maxWord + tmp + 1;
 				}
 				
 				this.setWord(addrA, tmp);
@@ -323,7 +326,7 @@ var DCPU16 = DCPU16 || {};
 				this.setWord(addrA, tmp);
 				break;
 			case 0xe: // ASR
-				// TODO sets b to b>>a, sets EX to ((b<<16)>>>a)&0xffff  (arithmetic shift) (treats b as signed)
+				// sets b to b>>a, sets EX to ((b<<16)>>>a)&0xffff  (arithmetic shift) (treats b as signed)
 				valA = DCPU16.signed(this.getWord(addrA));
 				tmp = valA >> valB;
 				
@@ -391,10 +394,27 @@ var DCPU16 = DCPU16 || {};
 				}
 				break;
 			case 0x1a: // ADX
-				// TODO sets b to b+a+EX, sets EX to 0x0001 if there is an overflow, 0x0 otherwise
+				// sets b to b+a+EX, sets EX to 0x1 if there is an overflow, 0x0 otherwise
+				tmp = this.getWord(addrA) + valB + this.ram.EX;
+					
+				this.ram.EX = 0;
+				if (tmp & this.maxWord + 1) {
+					this.ram.EX = 1;
+				}
+					
+				this.setWord(addrA, tmp);
 				break;
 			case 0x1b: // SBX
-				// TODO sets b to b-a+EX, sets EX to 0xFFFF if there is an underflow, 0x0 otherwise
+				// sets b to b-a+EX, sets EX to 0xFFFF if there is an underflow, 0x0 otherwise
+				tmp = this.getWord(addrA) - valB + this.ram.EX;
+
+				this.ram.EX = 0;
+				if (tmp < 0) {
+					this.ram.EX = this.maxWord;
+					tmp = this.maxWord + tmp;
+				}
+				
+				this.setWord(addrA, tmp);
 				break;
 			case 0x1e: // STI
 				// TODO sets b to a, then increases I and J by 1
