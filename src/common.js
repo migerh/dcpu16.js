@@ -22,7 +22,7 @@ var DCPU16 = DCPU16 || {};
 		return str;
 	};
 
-	DCPU16.printHex = function (v, w) {
+	DCPU16.printHex = function (v, w, prep) {
 			// TODO FIXME
 			if (typeof v == 'undefined') {
 				return '';
@@ -31,12 +31,13 @@ var DCPU16 = DCPU16 || {};
 			var r = v.toString(16), i;
 			
 			w = DCPU16.def(w, 4);
+			prep = DCPU16.def(prep, false);
 			
 			for (i = r.length; i < w; i++) {
 				r = '0' + r;
 			}
 			
-			return '0x' + r;
+			return (prep ? '0x' : '') + r;
 	};
 	
 	DCPU16.def = function (val, def) {

@@ -27,6 +27,9 @@ var DCPU16 = DCPU16 || {};
 		this.skipNext = false;
 		this.isRunning = false;
 		this.stepCount = 0;
+		
+		this.interrupts = [];
+		this.queue = false;
 			
 		this.events = {};
 		this.breakpoints = {};
@@ -156,6 +159,12 @@ var DCPU16 = DCPU16 || {};
 			
 			return r;
 		};
+		
+		this.triggerInterrupt = function (message) {
+			if (this.ram.IA !== 0) {
+				this.interrupts.push(message);
+			}
+		};
 			
 		this.exec = function (op, a, b) {
 			var tmp, addrA, valB, valA;
@@ -182,28 +191,37 @@ var DCPU16 = DCPU16 || {};
 			case 0:
 				switch (b) {
 				case 0x1:
-					if (this.ram.SP === 0) {
-						this.ram.SP = this.maxWord;
-					} else {
-						this.ram.SP -= 1;
-					}
+					this.setWord('SP', this.ram.SP - 1);
+
 					this.ram[this.ram.SP] = this.ram.PC;
 					this.ram.PC = valB;
 					break;
 				case 0x8: // INT
-					// TODO triggers a software interrupt with message a
+					// triggers a software interrupt with message a
+					this.triggerInterrupt(valB);
 					break;
 				case 0x9: // IAG
-					// TODO sets A to IA
+					// sets A to IA
+					this.setWord('A', this.ram.IA);
 					break;
 				case 0xa: // IAS
-					// TODO sets IA to a
+					// sets IA to a
+					this.setWord('IA', valB);
 					break;
 				case 0xb: // RFI
-					// TODO disables interrupt queueing, pops A from the stack, then pops PC from the stack
+					// disables interrupt queueing, pops A from the stack, then pops PC from the stack
+					this.ram.A = this.ram[this.ram.SP];
+					this.ram.PC = this.ram[this.ram.SP + 1];
+					this.setWord('SP', this.ram.SP + 2);
+					this.queue = false;
 					break;
 				case 0xc: // IAQ
-					// TODO if a is nonzero, interrupts will be added to the queue instead of triggered. if a is zero, interrupts will be triggered as normal again
+					// if a is nonzero, interrupts will be added to the queue instead of triggered. if a is zero, interrupts will be triggered as normal again
+					if (valB > 0) {
+						this.queue = true;
+					} else {
+						this.queue = false;
+					}
 					break;
 				case 0x10: // HWN
 					// TODO sets a to number of connected hardware devices
@@ -434,10 +452,25 @@ var DCPU16 = DCPU16 || {};
 		};
 		
 		this.step = function (trigger) {
-			var w = this.getWord(this.ram.PC++),
-				op = w & 0x1f,
-				b = (w & 0x3e0) >> 5,
-				a = (w & 0xfc00) >> 10;
+			var w, op, b, a;
+			
+			// check for interrupts
+			if (this.ram.IA === 0 && this.interrupts.length > 0) {
+				this.interrupts.length = 0;
+			} else if (this.ram.IA > 0 && this.interrupts.length > 0) {
+				this.queue = true;
+				this.setWord('SP', this.ram.SP - 2);
+				this.setWord(this.ram.SP + 1, this.ram.PC);
+				this.setWord(this.ram.SP, this.ram.A);
+				
+				this.ram.A = this.interrupts.shift();
+				this.ram.PC = this.ram.IA;
+			}
+			
+			w = this.getWord(this.ram.PC++);
+			op = w & 0x1f;
+			b = (w & 0x3e0) >> 5;
+			a = (w & 0xfc00) >> 10;
 
 			trigger = DCPU16.def(trigger, true);
 
@@ -447,7 +480,7 @@ var DCPU16 = DCPU16 || {};
 			if (trigger) {
 				this.trigger('update');
 			}
-				
+
 			// step should be executed even if a breakpoint is set
 			if (this.breakpoints[this.ram.PC]) {
 				return false;

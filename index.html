@@ -142,7 +142,11 @@ console.log(e, e.stack);
 
 			out.push('PC = ' + DCPU16.printHex(PC.ram.PC) + '    ');
 			out.push('SP = ' + DCPU16.printHex(PC.ram.SP) + '<br />');
-			out.push('EX  = ' + DCPU16.printHex(PC.ram.EX) + '<br /><br />');
+			out.push('IA = ' + DCPU16.printHex(PC.ram.IA) + '    ');
+			out.push('EX = ' + DCPU16.printHex(PC.ram.EX) + '<br /><br />');
+			
+			out.push('#interrupts = ' + PC.interrupts.length + '<br /><br />');
+
 			out.push('Stack: <br />');
 			if (PC.ram.SP > 0xFF00) {
 				for (i = PC.ram.SP; i < 0x10000; i++ ) {
