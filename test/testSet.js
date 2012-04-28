@@ -68,6 +68,44 @@ TestCase("Set", {
 		assertEquals('read from [label+reg]', 0xDEAD, this.cpu.ram.Y);
 	},
 
+	testSTI: function () {
+		expectAsserts(3);
+
+		var src =
+			'SET I, 3\n' +
+			'SET J, 5\n' +
+			'SET B, 3\n' +
+			'STI A, B\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('inc I', 4, this.cpu.ram.I);
+		assertEquals('inc J', 6, this.cpu.ram.J);
+		assertEquals('copy', 3, this.cpu.ram.A);
+	},
+	
+	testSTD: function () {
+		expectAsserts(3);
+
+		var src =
+			'SET I, 3\n' +
+			'SET J, 5\n' +
+			'SET B, 3\n' +
+			'STD A, B\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('dec I', 2, this.cpu.ram.I);
+		assertEquals('dec J', 4, this.cpu.ram.J);
+		assertEquals('copy', 3, this.cpu.ram.A);
+	},
+	
 	testExpressionValue: function () {
 		expectAsserts(1);
 

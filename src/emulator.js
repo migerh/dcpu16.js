@@ -131,16 +131,13 @@ var DCPU16 = DCPU16 || {};
 				if (which === 1) {
 					// push
 					if (!this.skipNext) {
-						this.ram.SP -= 1;
-						if (this.ram.SP < 0) {
-							this.ram.SP = this.maxWord;
-						}
+						this.setWord('SP', this.ram.SP - 1);
 					}
 					r = this.ram.SP;
 				} else {
 					r = this.ram.SP;
 					if (!this.skipNext) {
-						this.ram.SP = (this.ram.SP + 1) & this.maxWord;
+						this.setWord('SP', this.ram.SP + 1);
 					}
 				}
 			} else if (val == 0x19) {
@@ -417,10 +414,18 @@ var DCPU16 = DCPU16 || {};
 				this.setWord(addrA, tmp);
 				break;
 			case 0x1e: // STI
-				// TODO sets b to a, then increases I and J by 1
+				// sets b to a, then increases I and J by 1
+				this.setWord('I', this.ram.I + 1);
+				this.setWord('J', this.ram.J + 1);
+				
+				this.setWord(addrA, valB);
 				break;
 			case 0x1f: // STD
-				// TODO sets b to a, then decreases I and J by 1
+				// sets b to a, then decreases I and J by 1
+				this.setWord('I', this.ram.I - 1);
+				this.setWord('J', this.ram.J - 1);
+				
+				this.setWord(addrA, valB);
 				break;
 			default:
 				throw new ExecutionError('Unknown opcode "' + op.toString(16) + '".');
