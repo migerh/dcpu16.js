@@ -2,7 +2,8 @@ dcpu16.js
 =========
 
 This is yet another assembler and emulator package for the DCPU16 processor as
-defined by notch/mojang, version 1.7 (see http://pastebin.com/raw.php?i=Q4JvQvnM).
+defined by notch/mojang, version 1.7 (see http://pastebin.com/raw.php?i=Q4JvQvnM). Try
+the [live demo](http://migerh.github.com/dcpu16.js/).
 
 Usage
 =====
