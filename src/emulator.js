@@ -162,7 +162,7 @@ var DCPU16 = DCPU16 || {};
 			return r;
 		};
 		
-		this.triggerInterrupt = function (message) {
+		this.int = function (message) {
 			if (this.ram.IA !== 0) {
 				this.interrupts.push(message);
 			}
@@ -211,7 +211,7 @@ var DCPU16 = DCPU16 || {};
 				case 0x8: // INT
 					// triggers a software interrupt with message a
 					valB = this.getValue(a, 0);
-					this.triggerInterrupt(valB);
+					this.int(valB);
 					break;
 				case 0x9: // IAG
 					// sets A to IA

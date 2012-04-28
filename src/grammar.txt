@@ -188,7 +188,7 @@ value
   / v:label
     {
       if (regTable[v.toUpperCase()]) {
-        return node("val_register", v);
+        return node("val_register", v.toUpperCase());
       } else {
         return node("val_identifier", v);
       }

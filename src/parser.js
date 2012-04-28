@@ -1865,7 +1865,7 @@ DCPU16.Parser = (function(){
           if (result0 !== null) {
             result0 = (function(offset, v) {
                 if (regTable[v.toUpperCase()]) {
-                  return node("val_register", v);
+                  return node("val_register", v.toUpperCase());
                 } else {
                   return node("val_identifier", v);
                 }

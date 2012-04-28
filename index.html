@@ -6,6 +6,7 @@
 		<script type="text/javascript" src="src/asm.js"></script>
 		<script type="text/javascript" src="src/emulator.js"></script>
 		<script type="text/javascript" src="src/ne_lem1802.js"></script>
+		<script type="text/javascript" src="src/keyboard.js"></script>
 
 		<!-- Gimmicks -->
 		<script type="text/javascript" src="src/base64.js"></script>
@@ -52,7 +53,7 @@
 <pre id="status" style="margin-left: 530px; width: 200px; height: 400px;"></pre>
 
 <script type="text/javascript">
-	var PC, assembly, editor, marker, lastUpdate = 0, canvas, screen,
+	var PC, assembly, editor, marker, lastUpdate = 0, canvas, screen, kbd,
 		Range = require("ace/range").Range,
 		
 		load = function (what) {
@@ -68,6 +69,7 @@
 			if (assembly) {
 				PC = new DCPU16.PC();
 				screen = new DCPU16.NE_LEM1802(PC);
+				kbd = new DCPU16.Keyboard(PC);
 				PC.load(assembly.bc, assembly.base);
 				$('#jumpto').val(DCPU16.printHex(assembly.base));
 				PC.ram.PC = assembly.base;
@@ -166,7 +168,7 @@
 			if (timeout && PC.isRunning) {
 				setTimeout(function () {
 					printStatus(true)
-				}, 500);
+				}, 75);
 			}
 
 		},
@@ -248,12 +250,9 @@
 		var gist, dasm16 = require('ace/mode/dasm16').Mode;
 		
 		editor = ace.edit("src");
-		//editor.setTheme('ace/theme/merbivore');
-		//editor.setTheme('ace/theme/vibrant_ink');
 		editor.setTheme('ace/theme/vibrant_ink_mod');
 		editor.session.setUseWorker(false);
 		editor.getSession().setMode(new dasm16());
-		//$('#src').css('font-size', '14px');
 		
 		canvas = document.getElementById('out').getContext('2d');
 		
@@ -303,17 +302,6 @@
 			gotoRam();
 		});
 		
-		$(document).on('keyup', function (e) {
-			var code = e.keyCode || e.which,
-				remap = {
-					13: 10
-				};
-			
-			if (assembly) {
-				//PC.pressKey(remap[code] || code);
-			}
-		});
-		
 		document.addEventListener('dragover', function (e) {
 			e.stopPropagation();
 			e.preventDefault();
@@ -350,6 +338,8 @@
 							for (i = 0; i < firstTry.length; i++) {
 								rom.push(firstTry.charCodeAt(i));
 							}
+							alert('Disassembling is currently deactivated, sorry.');
+							return;
 							assembly = DCPU16.dasm(rom);
 							editor.getSession().setValue(assembly.src);
 							newPC();
@@ -388,7 +378,7 @@
 	};
 </script>
 
-<!-- examples -->
+<!-- example -->
 
 		<script type="text/dcpu-asm" id="example-features">
 ; If there is only a comment in the first line, make sure there are no whitespaces before.
@@ -456,177 +446,5 @@
 :data
 	dat 0x170, "Hello, World!", 0x65, 73, "w0,,0t!", 0xDEAD+20
 		</script>
-
-		<script type="text/dcpu-asm" id="example-1">
-		        ; Try some basic stuff
-                      set A, 0x30              ; 7c01 0030
-                      SET [0x1000], 0x20       ; 7de1 1000 0020
-                      SUB a, [0x1000]          ; 7803 1000
-                      IfN A, 0x10              ; c00d 
-                         SET Pc, crash         ; 7dc1 001a [*]
-                      
-        ; Do a loopy thing
-                      SET I, 10                ; a861
-                      SET A, 0x2000            ; 7c01 2000
-        :loop
-                 SET [0x2000+I], [A]      ; 2161 2000
-                      SUB I, 1                 ; 8463
-                      IFN I, 0                 ; 806d
-                         SET PC, loop          ; 7dc1 000d [*]
-        
-        ; Call a subroutine
-                      SET X, 0x4               ; 9031
-                      JSR testsub              ; 7c10 0018 [*]
-                      SET PC, crash            ; 7dc1 001a [*]
-        
-        :testsub      SHL X, 4                 ; 9037
-                      SET PC, POP              ; 61c1
-                        
-        ; Hang forever. X should now be 0x40 if everything went right.
-        :crash        SET PC, crash            ; 7dc1 001a [*]
-        
-        :data
-        			dat 0x170, "Hello, World!", 0x65, 73, "w0,,0t!"
-        
-        ; [*]: Note that these can be one word shorter and one cycle faster by using the short form (0x00-0x1f) of literals,
-        ;      but my assembler doesn't support short form labels yet.
-		</script>
-		<script type="text/dcpu-asm" id="example-screen">
-:start
-	set i, 0
-	set j, 0
-	set b, 0xf100
-
-:nextchar
-	set a, [data+i]
-	ife a, 0
-		set PC, end
-	ifg a, 0xff
-		set PC, setcolor
-	bor a, b
-	set [0x8000+j], a
-	add i, 1
-	add j, 1
-	set PC, nextchar
-
-:setcolor
-	set b, a
-	and b, 0xff
-	shl b, 8
-	ifg a, 0x1ff
-		add b, 0x80
-	add i, 1
-	set PC, nextchar
-
-:data
-	dat 0x170, "Hello ", 0x2e1, "world", 0x170, ", how are you?", 0x0
-
-:end
-	set PC, start
-		</script>
-		<script type="text/dcpu-asm" id="example-breaking">
-set PUSH, mod_colorshift
-set PUSH, mod_hello
-set [task_list], SP
-set PUSH, 2
-:sched_task_run
-    set A, [task_list]
-    add A, [task]
-    set PC, [A]
-:sched_advance
-    add [task], 1
-    set A, [task_list]
-    sub A, 1 ; Get task count in A
-    ife [A], [task]
-        set [task], 0
-    set PC, sched_task_run
-:yield
-    set X, POP ; Get task PC
-    set A, [task_list]
-    add A, [task]
-    set [A], X ; Overwrite task slot with current pc
-    set PC, sched_advance
-; System Variables
-:task
-dat 0
-:task_list
-dat 0
-:putc_line
-dat 0
-:putc_col
-dat 0
-:newline
-dat "\n"
-:putc_color
-dat 0xf100
-
-; Terminal Subroutines
-; Put char in reg A to screen
-:putc
-    set PUSH, B
-    ife A, [newline]
-        set PC, putc_newline
-    bor A, [putc_color]
-    set B, [putc_line]
-    mul B, 32
-    add B, [putc_col]
-    add B, 0x8000
-    set [B], A
-    add [putc_col], 1
-    ifg 32, [putc_col]
-        set PC, putc_end
-:putc_newline
-    add [putc_line], 1
-    set [putc_col], 0
-    ifg 16, [putc_line]
-        set PC, putc_end
-    ; We need to scroll!
-    jsr scroll
-    set [putc_line], 16
-:putc_end
-    set B, POP
-    set PC, POP ; return
-    ; Scroll the terminal up one line
-    ; Each line is 32 words
-:scroll
-    set PUSH, I ; Index in video ram
-    set PUSH, A ; Index of thing we're copying
-    set I, 0x8000
-:scroll_loop
-    set A, I
-    add A, 32 ; Corresponding character on next line
-    ifg A, 0x8400 ; End of video ram
-        set PC, scroll_end ; return
-    set [I], [A] ; Copy back 32 words
-    add I, 1
-    set PC, scroll_loop
-:scroll_end
-    set A, POP
-    set I, POP
-    set PC, POP ; return
-:mod_colorshift
-add [putc_color], 0x100
-jsr yield
-SET PC, mod_colorshift
-:mod_hello
-set [mod_hello_itr], 0
-:mod_hello_loop
-set I, [mod_hello_itr]
-add I, mod_hello_hwstr
-set A, [I]
-ife A, 0
-    set PC, mod_hello_end
-jsr putc
-add [mod_hello_itr], 1
-set PC, mod_hello_loop
-:mod_hello_end
-jsr yield
-set PC, mod_hello
-:mod_hello_hwstr
-    dat "Hey everybody, how is it going in DCPU16 land today?\n", 0x0
-:mod_hello_itr
-    dat 0
-		</script>
-		
 </body>
 </html>

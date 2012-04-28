@@ -414,7 +414,7 @@ var DCPU16 = DCPU16 || {};
 				
 				// we have to delete the old parameter value
 				bc[tmp.oppc] &= (((1 << (5 + (1 - tmp.par))) - 1) << (5 + (1 - tmp.par) * 5)) | 0x1f;
-				
+console.log(par[1]);
 				if (par[1] >= 0 && par[1] < 0x8) {
 					// it's a standard register
 					bc[tmp.oppc] |= (par[1] + 0x10) << (5 + tmp.par * 5);
