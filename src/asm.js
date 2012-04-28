@@ -207,6 +207,12 @@ var DCPU16 = DCPU16 || {};
 									}
 								} else {
 									if (tmp[1] !== 0) {
+										if (par === 1 && tmp[1] === 'PUSH') {
+											throw new ParserError('PUSH is not allowed in this context.', node.line);
+										} else if (par === 0 && tmp[1] === 'POP') {
+											throw new ParserError('POP is not allowed in this context.', node.line);
+										}
+										
 										parval = _.regTable[tmp[1]];
 									} else {
 										if (par === 1 && tmp[0] >= -1 && tmp[0] < 30) {
