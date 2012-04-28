@@ -30,6 +30,8 @@ var DCPU16 = DCPU16 || {};
 		
 		this.interrupts = [];
 		this.queue = false;
+		
+		this.devices = [];
 			
 		this.events = {};
 		this.breakpoints = {};
@@ -165,6 +167,12 @@ var DCPU16 = DCPU16 || {};
 				this.interrupts.push(message);
 			}
 		};
+		
+		this.add = function (device) {
+			if (device && device.id && device.version && device.manufacturer) {
+				this.devices.push(device);
+			}
+		};
 			
 		this.exec = function (op, a, b) {
 			var tmp, addrA, valB, valA;
@@ -172,11 +180,14 @@ var DCPU16 = DCPU16 || {};
 			// because of historical reason in here valA/addrA is in the
 			// current 1.7 spec is called 'b' and valB is called 'a' in the spec.
 
-			valB = this.getValue(a, 0);
+			if (op > 0) {
+				valB = this.getValue(a, 0);
+			}
+			
 			if (op >= 0x10 && op <= 0x17) {
 				// special treatment for conditions
 				addrA = this.getValue(b, 1);
-			} else {
+			} else if (op > 0) {
 				addrA = this.getAddress(b, 1);
 			}
 
@@ -191,6 +202,7 @@ var DCPU16 = DCPU16 || {};
 			case 0:
 				switch (b) {
 				case 0x1:
+					valB = this.getValue(a, 0);
 					this.setWord('SP', this.ram.SP - 1);
 
 					this.ram[this.ram.SP] = this.ram.PC;
@@ -198,18 +210,25 @@ var DCPU16 = DCPU16 || {};
 					break;
 				case 0x8: // INT
 					// triggers a software interrupt with message a
+					valB = this.getValue(a, 0);
 					this.triggerInterrupt(valB);
 					break;
 				case 0x9: // IAG
 					// sets A to IA
-					this.setWord('A', this.ram.IA);
+					valB = this.getAddress(a, 0);
+					this.setWord(valB, this.ram.IA);
 					break;
 				case 0xa: // IAS
 					// sets IA to a
+					valB = this.getValue(a, 0);
 					this.setWord('IA', valB);
 					break;
 				case 0xb: // RFI
 					// disables interrupt queueing, pops A from the stack, then pops PC from the stack
+					
+					// unused, but the spec wants it
+					valB = this.getValue(a, 0);
+					
 					this.ram.A = this.ram[this.ram.SP];
 					this.ram.PC = this.ram[this.ram.SP + 1];
 					this.setWord('SP', this.ram.SP + 2);
@@ -217,6 +236,7 @@ var DCPU16 = DCPU16 || {};
 					break;
 				case 0xc: // IAQ
 					// if a is nonzero, interrupts will be added to the queue instead of triggered. if a is zero, interrupts will be triggered as normal again
+					valB = this.getValue(a, 0);
 					if (valB > 0) {
 						this.queue = true;
 					} else {
@@ -224,14 +244,27 @@ var DCPU16 = DCPU16 || {};
 					}
 					break;
 				case 0x10: // HWN
-					// TODO sets a to number of connected hardware devices
+					valB = this.getAddress(a, 0);
+					// sets a to number of connected hardware devices
+					this.setWord(valB, this.devices.length);
 					break;
 				case 0x11: // HWQ
-					// TODO sets A, B, C, X, Y registers to information about hardware a A+(B<<16) is a 32 bit word identifying the
+					// sets A, B, C, X, Y registers to information about hardware a A+(B<<16) is a 32 bit word identifying the
 					// hardware id C is the hardware version X+(Y<<16) is a 32 bit word identifying the manufacturer
+					valB = this.getValue(a, 0);
+					
+					this.setWord('A', this.devices[valB].id);
+					this.setWord('B', this.devices[valB].id >>> 16);
+					
+					this.setWord('C', this.devices[valB].version);
+
+					this.setWord('X', this.devices[valB].manufacturer);
+					this.setWord('Y', this.devices[valB].manufacturer >>> 16);
 					break;
 				case 0x12: // HWI
-					// TODO sends an interrupt to hardware a
+					// sends an interrupt to hardware a
+					valB = this.getValue(a, 0);
+					this.devices[valB].int();
 					break;
 				default:
 					throw new ExecutionError('Unknown opcode "' + op.toString(16) + '".');
