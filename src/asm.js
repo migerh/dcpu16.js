@@ -440,7 +440,8 @@ var DCPU16 = DCPU16 || {};
 			warnings: warnings,
 			addr2line: addr2line,
 			line2addr: line2addr,
-			labels: labels
+			labels: labels,
+			entry: addr2line[0]
 		};
 	}
 	

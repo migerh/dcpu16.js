@@ -2,10 +2,7 @@ dcpu16.js
 =========
 
 This is yet another assembler and emulator package for the DCPU16 processor as
-defined by notch/mojang (see http://0x10c.com/doc/dcpu-16.txt).
-
-I always wanted to write an emulator for some processor and the DCPU16 seemed
-fairly easy to implement.
+defined by notch/mojang, version 1.7 (see http://pastebin.com/raw.php?i=Q4JvQvnM).
 
 Usage
 =====
@@ -17,16 +14,19 @@ address to line conversion object *addr2line*, the line to address conversion ob
 and the entry point in *entry*.
 
 	var bc = result.bc;
-	var line = result.meta.addr2line[0x1F];
-	var addr = result.meta.line2addr[2];
-	var entryline = result.meta.entry;  // equals result.meta.addr2line[0]
+	var line = result.addr2line[0x1F];
+	var addr = result.line2addr[2];
+	var entryline = result.entry;  // equals result.meta.addr2line[0]
 
 Please note that lines without a corresponding address (and vice versa) are undefined.
 
-	var PC = new DCPU16.PC([canvas], [rom]);
+	var PC = new DCPU16.PC([rom]);
 Initializes a new DCPU16 PC.
 Optional parameter *canvas*: Required for screen output.
 Optional parameter *rom*: An array of bytes.
+
+	var screen = new DCPU16.NE_LEM1802(PC);
+Initialize a screen and connect it to the PC.
 
 	PC.load(rom);
 Load the rom given as a memory image (an array of bytes).
@@ -43,7 +43,7 @@ Run the emulator until *stop* is called.
 Clear all registers and flags and reinitialize the RAM.
 
 	PC.ram[]
-Access the ram. The registers and flags (A, B, C, X, Y, Z, I, J, SP, PC, O) can
+Access the ram. The registers and flags (A, B, C, X, Y, Z, I, J, SP, PC, EX, IA) can
 be accessed as properties of the ram:
 
 	var valueOfRegisterA = PC.ram.A;
