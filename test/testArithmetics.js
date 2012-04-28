@@ -230,4 +230,111 @@ TestCase("Arithmetics", {
 		
 		assertEquals('xor registers', 0x5115, this.cpu.ram.A);
 	},
+	
+	// spec 1.7
+	testMLI: function () {
+		expectAsserts(2);
+
+		var src =
+			'SET A, 0x5\n' +
+			'SET C, 0x6\n' +
+			'MLI A, C\n' +
+			
+			'SET X, 0x5\n' +
+			'SET Y, 0xfffa\n' +
+			'MLI X, Y\n' +
+
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('MLI 5, 6', 0x1e, this.cpu.ram.A);
+		assertEquals('MLI 5, -6', 0xffe2, this.cpu.ram.X);
+	},
+
+	testDVI: function () {
+		expectAsserts(2);
+
+		var src =
+			'SET A, 0x1e\n' +
+			'SET C, 0x6\n' +
+			'DVI A, C\n' +
+			
+			'SET X, 0x1e\n' +
+			'SET Y, 0xfffa\n' +
+			'DVI X, Y\n' +
+
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('DVI 5, 6', 0x5, this.cpu.ram.A);
+		assertEquals('DVI 5, -6', 0xfffb, this.cpu.ram.X);
+	},
+
+	testMDI: function () {
+		expectAsserts(1);
+
+		// if the source is changed, adjust the expected value marked below
+		var src =
+			'SET A, 0xfff9\n' +
+			'SET C, 0x10\n' +
+			'MDI A, C\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(10);
+		
+		assertEquals('MDI -7, 16', 0xfff9, this.cpu.ram.A);
+	},
+
+	testASR: function () {
+		expectAsserts(1);
+
+		var src =
+			'SET A, 0xFFF9\n' +
+			'ASR A, 5\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('ASR', 0xffff, this.cpu.ram.A);
+	},
+
+	testADX: function () {
+		expectAsserts(1);
+
+		var src =
+			'SET A, 0x1234\n' +
+			'SET C, 0x4321\n' +
+			'XOR A, C\n' +
+			
+			':halt SET PC, halt';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('xor registers', 0x5115, this.cpu.ram.A);
+	},
+
+	testSBX: function () {
+		expectAsserts(1);
+
+		var src =
+			'SET A, 0x1234\n' +
+			'SET C, 0x4321\n' +
+			'XOR A, C\n' +
+			
+			':halt SET PC, halt';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('xor registers', 0x5115, this.cpu.ram.A);
+	}
 });

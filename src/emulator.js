@@ -128,7 +128,7 @@ var DCPU16 = DCPU16 || {};
 			} else if (val >= 0x10 && val < 0x18) {
 				r = (this.getWord(this.ram.PC++) + this.getWord(_.registers_rev[val - 0x10])) & this.maxWord;
 			} else if (val == 0x18) {
-				if (which === 0) {
+				if (which === 1) {
 					// push
 					if (!this.skipNext) {
 						this.ram.SP -= 1;
@@ -146,7 +146,9 @@ var DCPU16 = DCPU16 || {};
 			} else if (val == 0x19) {
 				r = this.ram.SP;
 			} else if (val == 0x1a) {
+				// PICK n
 				r = this.getWord(this.ram.PC++);
+				r = this.ram.SP + r;
 			} else if (val >= 0x1b && val <= 0x1d) {
 				r = _.values_rev[val];
 			} else if (val == 0x1e) {
@@ -159,7 +161,7 @@ var DCPU16 = DCPU16 || {};
 		};
 			
 		this.exec = function (op, a, b) {
-			var tmp, addrA, valB;
+			var tmp, addrA, valB, valA;
 
 			valB = this.getValue(a, 0);
 			if (op >= 0x10 && op <= 0x17) {
@@ -244,12 +246,15 @@ var DCPU16 = DCPU16 || {};
 				break;
 			case 0x4: // MUL
 				tmp = this.getWord(addrA) * valB;
-				this.ram.EX = ((tmp) >> 16) & this.maxWord;
-				
+
+				this.setWord('EX', tmp >> 16);				
 				this.setWord(addrA, tmp);
 				break;
 			case 0x5: // MLI
-				// TODO
+				tmp = DCPU16.signed(this.getWord(addrA)) * DCPU16.signed(valB);
+				
+				this.setWord('EX', tmp >> 16);
+				this.setWord(addrA, tmp);
 				break;
 			case 0x6: // DIV
 				if (valB === 0) {
@@ -263,7 +268,17 @@ var DCPU16 = DCPU16 || {};
 				this.setWord(addrA, tmp);
 				break;
 			case 0x7: // DVI
-				// TODO
+				valB = DCPU16.signed(valB);
+				valA = DCPU16.signed(this.getWord(addrA));
+				if (valB === 0) {
+					tmp = 0;
+					this.ram.EX = 0;
+				} else {
+					tmp = Math.floor(valA / valB);
+					this.setWord('EX', Math.floor(valA << 16) / valB);
+				}
+				
+				this.setWord(addrA, tmp);
 				break;
 			case 0x8: // MOD
 				if (valB === 0) {
@@ -275,7 +290,17 @@ var DCPU16 = DCPU16 || {};
 				this.setWord(addrA, tmp);
 				break;
 			case 0x9: // MDI
-				// TODO
+				valB = DCPU16.signed(valB);
+				valA = DCPU16.signed(this.getWord(addrA));
+				
+				if (valB === 0) {
+					tmp = 0;
+				} else {
+					tmp = valA % valB;
+				}
+				
+				this.setWord(addrA, tmp);
+				break;
 			case 0xa: // AND
 				tmp = this.getWord(addrA) & valB;
 					
@@ -292,13 +317,18 @@ var DCPU16 = DCPU16 || {};
 				this.setWord(addrA, tmp);
 				break;
 			case 0xd: // SHR
-				tmp = this.getWord(addrA) >> valB;
+				tmp = this.getWord(addrA) >>> valB;
 				this.ram.EX = ((this.getWord(addrA) << 16) >> valB) & this.maxWord;
 				
 				this.setWord(addrA, tmp);
 				break;
 			case 0xe: // ASR
 				// TODO sets b to b>>a, sets EX to ((b<<16)>>>a)&0xffff  (arithmetic shift) (treats b as signed)
+				valA = DCPU16.signed(this.getWord(addrA));
+				tmp = valA >> valB;
+				
+				this.setWord('EX', ((valA << 16) >>> valB));
+				this.setWord(addrA, tmp);
 				break;
 			case 0xf: // SHL
 				tmp = this.getWord(addrA) << valB;
@@ -319,31 +349,46 @@ var DCPU16 = DCPU16 || {};
 				}
 				break;
 			case 0x12: // IFE
+				// performs next instruction only if b==a
 				if (addrA !== valB) {
 					this.skipNext = true;
 					this.step();
 				}
 				break;
 			case 0x13: // IFN
+				// performs next instruction only if b!=a
 				if (addrA === valB) {
 					this.skipNext = true;
 					this.step();
 				}
 				break;
 			case 0x14: // IFG
+				// performs next instruction only if b>a
 				if (addrA <= valB) {
 					this.skipNext = true;
 					this.step();
 				}
 				break;
 			case 0x15: // IFA
-				// TODO performs next instruction only if b>a (signed)
+				// performs next instruction only if b>a (signed)
+				if (DCPU16.signed(addrA) <= DCPU16.signed(valB)) {
+					this.skipNext = true;
+					this.step();
+				}
 				break;
 			case 0x16: // IFL
-				// TODO performs next instruction only if b<a 
+				// performs next instruction only if b<a 
+				if (addrA >= valB) {
+					this.skipNext = true;
+					this.step();
+				}
 				break;
 			case 0x17: // IFU
-				// TODO performs next instruction only if b<a (signed)
+				// performs next instruction only if b<a (signed)
+				if (DCPU16.signed(addrA) >= DCPU16.signed(valB)) {
+					this.skipNext = true;
+					this.step();
+				}
 				break;
 			case 0x1a: // ADX
 				// TODO sets b to b+a+EX, sets EX to 0x0001 if there is an overflow, 0x0 otherwise

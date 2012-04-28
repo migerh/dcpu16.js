@@ -420,7 +420,7 @@ var DCPU16 = DCPU16 || {};
 					bc[tmp.oppc] |= (par[1] + 0x10) << (5 + tmp.par * 5);
 				} else if (par[1] === 0x1b) {
 					// it's SP
-					bc[tmp.oppc] |= 0x1b << (5 + tmp.par * 5);
+					bc[tmp.oppc] |= 0x1a << (5 + tmp.par * 5);
 				} else {
 					throw new ParserError('The register "' + oppc + '" is not allowed in an expression.', tmp.line);
 				}

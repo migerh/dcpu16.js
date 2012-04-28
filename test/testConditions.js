@@ -101,6 +101,69 @@ TestCase("Conditions", {
 		assertEquals('one bit', 0xBEEF, this.cpu.ram.Y);
 	},
 	
+	testIFA: function () {
+		expectAsserts(2);
+
+		var src =
+			'SET X, 0xfff6\n' +
+			'IFA X, 0x0001\n' +
+			'SET X, 0xDEAD\n' +
+
+			'SET Y, 0xfff6\n' +
+			'IFA Y, 0xfff3\n' +
+			'SET Y, 0xBEEF\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('no bits', 0xfff6, this.cpu.ram.X);
+		assertEquals('one bit', 0xBEEF, this.cpu.ram.Y);
+	},
+	
+	testIFL: function () {
+		expectAsserts(2);
+
+		var src =
+			'SET X, 0x1000\n' +
+			'IFL X, 0x0001\n' +
+			'SET X, 0xDEAD\n' +
+
+			'SET Y, 0x1000\n' +
+			'IFL Y, 0x1001\n' +
+			'SET Y, 0xBEEF\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('no bits', 0x1000, this.cpu.ram.X);
+		assertEquals('one bit', 0xBEEF, this.cpu.ram.Y);
+	},
+	
+	testIFU: function () {
+		expectAsserts(2);
+
+		var src =
+			'SET X, 0xfff4\n' +
+			'IFU X, 0x0001\n' +
+			'SET X, 0xDEAD\n' +
+
+			'SET Y, 0xfff4\n' +
+			'IFU Y, 0xfff2\n' +
+			'SET Y, 0xBEEF\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('no bits', 0xDEAD, this.cpu.ram.X);
+		assertEquals('one bit', 0xFFF4, this.cpu.ram.Y);
+	},
+	
 	testIfeAndStack: function () {
 		expectAsserts(1);
 
