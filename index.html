@@ -34,7 +34,7 @@
 
 <div style="height: 500px;">
 	<div id="src" style="width: 700px; height: 500px; float: left;"></div>
-	<canvas id="out" width="128" height="96" style="width: 512; height: 384px; margin-left: 710px; margin-top: 0px; border: 16px solid black;">Canvas is not supported.</canvas>
+	<canvas id="out" width="512" height="384" style="margin-left: 710px; margin-top: 0px; border: 16px solid black;">Canvas is not supported.</canvas>
 </div>
 
 <p>
@@ -169,7 +169,7 @@
 			}
 			
 			$('#status').html(out.join(''));
-			screen.drawScreen(canvas);
+			screen.drawScreen(canvas, 512, 384);
 				
 			gotoRam();
 			
@@ -263,8 +263,6 @@
 		editor.getSession().setMode(new dasm16());
 		
 		canvas = document.getElementById('out').getContext('2d');
-		
-		canvas.scale(2, 2);
 		
 		editor.getSession().selection.on('changeCursor', function (e) {
 			if (!assembly) {

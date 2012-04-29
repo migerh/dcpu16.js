@@ -54,6 +54,9 @@ var DCPU16 = DCPU16 || {};
 		this.version = 0x1802;
 		this.manufacturer = 0x1c6c8b36;
 		
+		this.defWidth = 128;
+		this.defHeight = 96;
+
 		this.width = 128;
 		this.height = 96;
 		
@@ -118,33 +121,48 @@ var DCPU16 = DCPU16 || {};
 		};
 		
 		this.drawCharacter = function (char, fg, bg, x, y, buf) {
-			var i, j, line, index, color;
-
-			for (i = 0; i < 4; i++) {
-				index = ((x << 10) + (y << 2) + i) << 2;
-				line = (char >>> ((3 - i) << 3)) & 0xff;
+			var i, j, k, l, line, index, color,
+				scale = this.width / this.defWidth;
 				
+			x = x * /* one line */ this.width * /* 4 values for each pixel */ 4 * /* height of char */ 8 * scale;
+			y = y * /* width of char */4 * /* 4 values for each pixel */ 4 * scale;
+			
+			for (i = 0; i < 4; i++) {
+				index = x + y + i * 4 * scale;
+				line = (char >>> ((3 - i) << 3)) & 0xff;
+
 				for (j = 0; j < 8; j++) {
 					color = bg;
 					if (line & (1 << j)) {
 						color = fg;
 					}
 
-					buf.data[index] = color.r;
-					buf.data[index + 1] = color.g;
-					buf.data[index + 2] = color.b;
-					buf.data[index + 3] = 255;
-					index += this.width << 2;
+					for (k = 0; k < scale; k++) {
+						for (l = 0; l < scale; l++) {
+							buf.data[index + (l << 2)] = color.r;
+							buf.data[index + (l << 2) + 1] = color.g;
+							buf.data[index + (l << 2) + 2] = color.b;
+							buf.data[index + (l << 2) + 3] = 255;
+						}
+						index += (this.width << 2);
+					}
 				}
 			}
 			
 			return buf;
 		};
 		
-		this.drawScreen = function (canvas) {
+		this.drawScreen = function (canvas, width, height) {
 			if (!this.vram) {
 				return;
 			}
+
+			if (!canvas || width % 128 !== 0 || height % 96 !== 0 || Math.abs(height/width - 0.75) > 0.001) {
+				throw new Error('No canvas given or canvas width/height was not a multiple of 128 resp. 96 or wrong aspect ratio.');
+			}
+			
+			this.width = width;
+			this.height = height;
 
 			var buf = canvas.createImageData(this.width, this.height),
 				i, val, char, fg, bg, x, y;
