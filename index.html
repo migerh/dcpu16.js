@@ -110,7 +110,6 @@
 			} catch (e) {
 				editor.getSession().removeMarker(marker);
 				assembly = null;
-				console.log(e, e.stack);
 				editor.getSession().setAnnotations([{
 					row: e.line-1,
 					column: 0,

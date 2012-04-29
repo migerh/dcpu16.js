@@ -420,7 +420,6 @@ var DCPU16 = DCPU16 || {};
 				break;
 			case 0x14: // IFG
 				// performs next instruction only if b>a
-console.log('IFG', a, b, addrA, valB);
 				if (addrA <= valB) {
 					this.skipNext = true;
 					this.step();
@@ -496,7 +495,7 @@ console.log('IFG', a, b, addrA, valB);
 			// check for interrupts
 			if (this.ram.IA === 0 && this.interrupts.length > 0) {
 				this.interrupts.length = 0;
-			} else if (this.ram.IA > 0 && this.interrupts.length > 0) {
+			} else if (this.ram.IA > 0 && this.interrupts.length > 0 && !this.queue) {
 				this.queue = true;
 				this.setWord('SP', this.ram.SP - 2);
 				this.setWord(this.ram.SP + 1, this.ram.PC);
