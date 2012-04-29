@@ -21,20 +21,30 @@ var DCPU16 = DCPU16 || {};
 			0x7C14,0x0800,0x0814,0x7C00,0x7C04,0x0800,0x4854,0x2400,0x043E,0x4400,0x3C40,0x7C00,0x1C60,0x1C00,0x7C30,0x7C00,
 			0x6C10,0x6C00,0x4C50,0x3C00,0x6454,0x4C00,0x0836,0x4100,0x0077,0x0000,0x4136,0x0800,0x0201,0x0201,0x704C,0x7000],
 		
-		color: function (bits) {
-			var cb = 160;
+		color: function (bits, palette, dcpu) {
+			var cb;
 			
 			bits = bits & 0xf;
+			if (palette === 0) {
+				cb = 160;
 			
-			if (bits & 0x8) {
-				cb = 255;
+				if (bits & 0x8) {
+					cb = 255;
+				}
+			
+				return {
+					r: bits & 0x4 ? cb : 0,
+					g: bits & 0x2 ? cb : 0,
+					b: bits & 0x1 ? cb : 0
+				};
+			} else {
+				bits = dcpu.getWord(palette + bits);
+				return {
+					r: ((bits >>> 8) & 0xf) * 17,
+					g: ((bits >>> 4) & 0xf) * 17,
+					b: (bits & 0xf) * 17
+				};
 			}
-			
-			return {
-				r: bits & 0x4 ? cb : 0,
-				g: bits & 0x2 ? cb : 0,
-				b: bits & 0x1 ? cb : 0
-			};
 		}
 	};
 
@@ -49,10 +59,44 @@ var DCPU16 = DCPU16 || {};
 		
 		this.vram = 0x8000;
 		this.font = 0;
+		this.palette = 0;
+		
+		this.currentBorder = 0;
+		
+		this.events = {};
+		
+		this.on = function (event, handler, scope) {
+			this.events[event] = this.events[event] || [];
+			handler.scope = DCPU16.def(scope, this);
+			this.events[event].push(handler);
+		};
+			
+		this.off = function (event, handler) {
+			var i;
+				
+			if (this.events[event]) {
+				for (i = 0; i < this.events[event].length; i++) {
+					if (this.events[event][i] === handler) {
+						this.events[event].splice(i, 1);
+						break;
+					}
+				}
+			}
+		};
+			
+		this.trigger = function (event) {
+			var i, args = Array.prototype.slice.call(arguments, 1);
+
+			if (this.events[event]) {
+				for (i = 0; i < this.events[event].length; i++) {
+					this.events[event][i].apply(this.events[event][i].scope, args);
+				}
+			}
+		};
 		
 		this.int = function () {
 			var b = this.dcpu.ram.B;
-			
+
 			switch (this.dcpu.ram.A) {
 			case 0: // MEM_MAP_SCREEN
 				this.vram = b;
@@ -61,10 +105,14 @@ var DCPU16 = DCPU16 || {};
 				this.font = b;
 				break;
 			case 2: // MEM_MAP_PALETTE
-				// TODO
-				break;
+				this.palette = b;
+				b = this.currentBorder;
+				// run through and trigger an update of the border
 			case 3: // SET_BORDER_COLOR
-				// TODO
+				this.currentBorder = b;
+				b = _.color(b, this.palette, this.dcpu);
+				b = ['#', DCPU16.printHex(b.r, 2, false), DCPU16.printHex(b.g, 2, false), DCPU16.printHex(b.b, 2, false)].join('');
+				this.trigger('border', b);
 				break;
 			}
 		};
@@ -113,8 +161,8 @@ var DCPU16 = DCPU16 || {};
 					char = (_.font[((val & 0x7f) << 1)] << 16) | (_.font[((val & 0x7f) << 1) + 1]);
 				}
 				
-				bg = _.color(val >>> 8);
-				fg = _.color(val >>> 12);
+				bg = _.color(val >>> 8, this.palette, this.dcpu);
+				fg = _.color(val >>> 12, this.palette, this.dcpu);
 				
 				buf = this.drawCharacter(char, fg, bg, x, y, buf);
 			}

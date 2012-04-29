@@ -5,8 +5,8 @@
 		<script type="text/javascript" src="src/parser.js"></script>
 		<script type="text/javascript" src="src/asm.js"></script>
 		<script type="text/javascript" src="src/emulator.js"></script>
-		<script type="text/javascript" src="src/ne_lem1802.js"></script>
-		<script type="text/javascript" src="src/keyboard.js"></script>
+		<script type="text/javascript" src="src/hw/ne_lem1802.js"></script>
+		<script type="text/javascript" src="src/hw/keyboard.js"></script>
 
 		<!-- Gimmicks -->
 		<script type="text/javascript" src="src/base64.js"></script>
@@ -33,7 +33,7 @@
 
 <div style="height: 500px;">
 	<div id="src" style="width: 700px; height: 500px; float: left;"></div>
-	<canvas id="out" width="128" height="96" style="width: 256; height: 192px; margin-left: 710px; margin-top: 0px;">Canvas is not supported.</canvas>
+	<canvas id="out" width="128" height="96" style="width: 256; height: 192px; margin-left: 710px; margin-top: 0px; border: 16px solid black;">Canvas is not supported.</canvas>
 </div>
 
 <p>
@@ -69,6 +69,11 @@
 			if (assembly) {
 				PC = new DCPU16.PC();
 				screen = new DCPU16.NE_LEM1802(PC);
+				
+				screen.on('border', function (color) {
+					$('#out').css('border-color', color);
+				});
+				
 				kbd = new DCPU16.Keyboard(PC);
 				PC.load(assembly.bc, assembly.base);
 				$('#jumpto').val(DCPU16.printHex(assembly.base));
@@ -102,7 +107,7 @@
 			} catch (e) {
 				editor.getSession().removeMarker(marker);
 				assembly = null;
-				//console.log(e, e.stack);
+				console.log(e, e.stack);
 				editor.getSession().setAnnotations([{
 					row: e.line-1,
 					column: 0,

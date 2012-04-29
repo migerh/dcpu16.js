@@ -56,11 +56,11 @@ var DCPU16 = DCPU16 || {};
 		};
 			
 		this.trigger = function (event) {
-			var i, args = Array.prototype.slice(args, 1);
+			var i, args = Array.prototype.slice.call(arguments, 1);
 				
 			if (this.events[event]) {
 				for (i = 0; i < this.events[event].length; i++) {
-					this.events[event][i].call(this.events[event][i].scope, args);
+					this.events[event][i].apply(this.events[event][i].scope, args);
 				}
 			}
 		};
