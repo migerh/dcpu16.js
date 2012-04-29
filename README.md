@@ -23,7 +23,6 @@ Please note that lines without a corresponding address (and vice versa) are unde
 
 	var PC = new DCPU16.PC([rom]);
 Initializes a new DCPU16 PC.
-Optional parameter *canvas*: Required for screen output.
 Optional parameter *rom*: An array of bytes.
 
 	var screen = new DCPU16.NE_LEM1802(PC);
