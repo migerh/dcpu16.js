@@ -181,9 +181,14 @@ var DCPU16 = DCPU16 || {};
 					if (_.opTable[node.value] >= 0) {
 						opcode = _.opTable[node.value];
 						parameters = node.children[0];
+						
+						// this is an issue in the parser that needs to be resolved there
+						if (parameters.length === 1 && parameters[0] === '') {
+							parameters.length = 0;
+						}
 
-						if (((opcode & 0x1f) > 0 && parameters.length !== 2) || ((opcode & 0x1f) === 0 && parameters.length !== 1)) {
-							throw new ParserError('Invalid number of parameters.', node.line);
+						if (((opcode & 0x1f) > 0 && parameters.length !== 2) || ((opcode & 0x1f) === 0 && node.value !== 'RFI' && parameters.length !== 1)) {
+							throw new ParserError('Invalid number of parameters. Got ' + parameters.length, node.line);
 						}
 
 						oppc = pc;
@@ -226,7 +231,7 @@ var DCPU16 = DCPU16 || {};
 								// write parameter value to opcode
 								opcode |= ((parval & ((1 << (5 + par)) - 1)) << (5 + par * 5));
 							}
-						} else {
+						} else if (node.value !== 'RFI') {
 							// non basic op
 							par = 1;
 

@@ -672,6 +672,7 @@ DCPU16.Parser = (function(){
               result2 = parse_ws();
               if (result2 !== null) {
                 result3 = parse_paramlist();
+                result3 = result3 !== null ? result3 : "";
                 if (result3 !== null) {
                   result0 = [result0, result1, result2, result3];
                 } else {
