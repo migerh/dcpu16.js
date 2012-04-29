@@ -53,6 +53,17 @@
 		<input type="text" value="" id="charmap-data" /><br />
 		<canvas id="charmap" width="256" height="256">Canvas is not supported.</canvas>
 	</div>
+
+	<div class="testarea">
+		<h3>Testing area (by FireFly)</h3>
+		<canvas id="testarea" width="512" height="256">Canvas is not supported.</canvas>
+	</div>
+
+	<ol>
+		<li>Draw selected character from the charmap to the testing area.</li>
+		<li>Update the characters your drew, and the changes will take effect in
+			the testing area as well as in the charmap.</li>
+	</ol>
 </div>
 
 <script type="text/javascript">
@@ -76,12 +87,28 @@
 				0x6C10, 0x6C00, 0x4C50, 0x3C00, 0x6454, 0x4C00, 0x0836, 0x4100, 0x0077, 0x0000, 0x4136, 0x0800, 0x0201, 0x0201, 0x0205, 0x0200],
 			singleChar = [0x0, 0x0],
 			PC = new DCPU16.PC(),
-			char, charmap,
+			char, charmap, testarea,
 			cmbw = 4, cmbh = 4, scbw = 20, scbh = 20,
-			selectedChar = 0;
+			selectedChar = 0,
+			testAreaData = initTestAreaData();
 			
-		char = document.getElementById('char').getContext('2d');
-		charmap = document.getElementById('charmap').getContext('2d');
+		char     = document.getElementById('char').getContext('2d');
+		charmap  = document.getElementById('charmap').getContext('2d');
+		testarea = document.getElementById('testarea').getContext('2d');
+
+		function initTestAreaData() {
+			var res = [];
+
+			for (var y=0; y<16; y++) {
+				res[y] = [];
+
+				for (var x=0; x<32; x++) {
+					res[y][x] = 2*0x20; // space char
+				}
+			}
+
+			return res;
+		}
 		
 		function loadCharacter(index) {
 			PC.drawCharacter(char, charmapData[index], charmapData[index + 1], '000', 'CDEB8B', false, 0, 0, scbw, scbh);
@@ -138,9 +165,25 @@
 			});
 			$('#charmap-data').val(out.join(', '));
 		}
+
+		function redrawTestArea() {
+			testAreaData.forEach(function(line, y) {
+				line.forEach(function(cell, x) {
+					var px = x * cmbw * 4,
+						py = y * cmbh * 8;
+
+				//PC.drawCharacter(charmap, charmapData[i++], charmapData[i++], '000', 'CDEB8B', false, ox, oy, cmbw, cmbh);
+					PC.drawCharacter(testarea, charmapData[cell],
+							charmapData[cell + 1], '000', 'CDEB8B', false, px,
+							py, cmbw, cmbh);
+				})
+			})
+		}
 		
 		redrawCharmap();
 		loadCharacter(0);
+
+		redrawTestArea();
 
 		// draw a rectangle	around the first char to indicate its selection
 		charmap.strokeStyle = '#f00';
@@ -164,6 +207,7 @@
 				oy = Math.floor(y / (scbh)), ox = Math.floor(x / (scbw));
 			
 			flipBit(oy + ox * 8);
+			redrawTestArea();
 		});
 		
 		$('#char-data').on('change', function (e) {
@@ -175,6 +219,18 @@
 			redrawCharmap();
 			loadCharacter(selectedChar);
 		});
+
+		$("#testarea").on('click', function (ev) {
+			var px  = ev.pageX - this.offsetLeft,
+				py  = ev.pageY - this.offsetTop,
+
+				ox  = Math.floor(px / (4*cmbw)),
+				oy  = Math.floor(py / (8*cmbh));
+
+			testAreaData[oy][ox] = selectedChar;
+			redrawTestArea(); // It's not necessary to redraw everything, but
+			                  // I'm lazy...
+		})
 
 		/*$('#char-data').on('change', function (e) {
 			var d = $('#char-data').val().split(','), i;
@@ -190,3 +246,4 @@
 </script>
 </body>
 </html>
+
