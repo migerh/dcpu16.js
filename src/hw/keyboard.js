@@ -53,8 +53,7 @@ var DCPU16 = DCPU16 || {};
 		
 		// more properties
 		this.buffer = [];
-		this.interrupt = false;
-		this.messge = 0;
+		this.message = 0;
 		
 		this.int = function () {
 			var b = this.dcpu.ram.B;
@@ -74,7 +73,6 @@ var DCPU16 = DCPU16 || {};
 				break;
 			case 3:
 				// If register B is non-zero, turn on interrupts with message B. If B is zero, disable interrupts
-				this.interrupt = b > 0;
 				this.message = b;
 				break;
 			}
@@ -86,7 +84,7 @@ var DCPU16 = DCPU16 || {};
 			
 			code = _.mod[code] || code;
 			this.buffer.push(e.which);
-			if (this.interrupt) {
+			if (this.message > 0) {
 				this.dcpu.int(this.message);
 			}
 		};

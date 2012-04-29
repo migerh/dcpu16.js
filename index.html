@@ -7,6 +7,7 @@
 		<script type="text/javascript" src="src/emulator.js"></script>
 		<script type="text/javascript" src="src/hw/ne_lem1802.js"></script>
 		<script type="text/javascript" src="src/hw/keyboard.js"></script>
+		<script type="text/javascript" src="src/hw/clock.js"></script>
 
 		<!-- Gimmicks -->
 		<script type="text/javascript" src="src/base64.js"></script>
@@ -53,7 +54,7 @@
 <pre id="status" style="margin-left: 530px; width: 200px; height: 400px;"></pre>
 
 <script type="text/javascript">
-	var PC, assembly, editor, marker, lastUpdate = 0, canvas, screen, kbd,
+	var PC, assembly, editor, marker, lastUpdate = 0, canvas, screen, kbd, clock,
 		Range = require("ace/range").Range,
 		
 		load = function (what) {
@@ -75,6 +76,8 @@
 				});
 				
 				kbd = new DCPU16.Keyboard(PC);
+				clock = new DCPU16.Clock(PC);
+				
 				PC.load(assembly.bc, assembly.base);
 				$('#jumpto').val(DCPU16.printHex(assembly.base));
 				PC.ram.PC = assembly.base;
