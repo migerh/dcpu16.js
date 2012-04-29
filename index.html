@@ -30,11 +30,11 @@
 <body>
 
 <p><a href="https://github.com/migerh/dcpu16.js">GitHub repo</a></p>
-<span style="font-size: 11px;">Click the line numbers to toggle breakpoints. Drop asm source files or rom files over the editor to load them.</span>
+<span style="font-size: 11px;">Click the line numbers to toggle breakpoints.<!-- Drop asm source files or rom files over the editor to load them.--></span>
 
 <div style="height: 500px;">
 	<div id="src" style="width: 700px; height: 500px; float: left;"></div>
-	<canvas id="out" width="128" height="96" style="width: 256; height: 192px; margin-left: 710px; margin-top: 0px; border: 16px solid black;">Canvas is not supported.</canvas>
+	<canvas id="out" width="128" height="96" style="width: 512; height: 384px; margin-left: 710px; margin-top: 0px; border: 16px solid black;">Canvas is not supported.</canvas>
 </div>
 
 <p>
@@ -64,7 +64,7 @@
 			range = new Range(line-1, 0, line, 0);
 			editor.getSession().removeMarker(marker);
 			marker = editor.getSession().addMarker(range, "markline", "line");
-			editor.gotoLine(line);
+			//editor.gotoLine(line);
 		},
 		newPC = function () {
 			if (assembly) {
@@ -117,11 +117,11 @@
 					text: e.toString(),
 					type: 'error'
 				}]);
-				editor.gotoLine(e.line-1);
+				//editor.gotoLine(e.line-1);
 				$('#summary').html('There has been an error. <button onclick="editor.gotoLine(' + (e.line) + ');">Jump to the error</button>.');
 			}
 			
-			editor.moveCursorToPosition(cursor);
+			//editor.moveCursorToPosition(cursor);
 		},
 		step = function () {
 			PC.step();
@@ -264,6 +264,8 @@
 		
 		canvas = document.getElementById('out').getContext('2d');
 		
+		canvas.scale(2, 2);
+		
 		editor.getSession().selection.on('changeCursor', function (e) {
 			if (!assembly) {
 				return;
@@ -380,7 +382,7 @@
 			try {
 				localStorage.setItem('file', editor.getSession().getValue());
 			} catch (e) {}
-			
+
 			asm();
 		});
 	};

@@ -95,6 +95,7 @@ var DCPU16 = DCPU16 || {};
 		
 		_.addEvent(document, 'keyup', function (e) {
 			that.keyPress(e);
+			e.preventDefault();
 		});
 	};
 
