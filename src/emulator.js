@@ -238,6 +238,7 @@ var DCPU16 = DCPU16 || {};
 					this.ram.PC = this.ram[this.ram.SP + 1];
 					this.setWord('SP', this.ram.SP + 2);
 					this.queue = false;
+					this.canInterrupt = false;
 					break;
 				case 0xc: // IAQ
 					// if a is nonzero, interrupts will be added to the queue instead of triggered. if a is zero, interrupts will be triggered as normal again
@@ -495,7 +496,7 @@ var DCPU16 = DCPU16 || {};
 			// check for interrupts
 			if (this.ram.IA === 0 && this.interrupts.length > 0) {
 				this.interrupts.length = 0;
-			} else if (this.ram.IA > 0 && this.interrupts.length > 0 && !this.queue) {
+			} else if (this.ram.IA > 0 && this.interrupts.length > 0 && !this.queue && this.canInterrupt) {
 				this.queue = true;
 				this.setWord('SP', this.ram.SP - 2);
 				this.setWord(this.ram.SP + 1, this.ram.PC);
@@ -505,6 +506,8 @@ var DCPU16 = DCPU16 || {};
 				this.ram.PC = this.ram.IA;
 			}
 			
+			this.canInterrupt = true;
+
 			w = this.getWord(this.ram.PC++);
 			op = w & 0x1f;
 			b = (w & 0x3e0) >> 5;
@@ -518,7 +521,7 @@ var DCPU16 = DCPU16 || {};
 			if (trigger) {
 				this.trigger('update');
 			}
-
+			
 			// step should be executed even if a breakpoint is set
 			if (this.breakpoints[this.ram.PC]) {
 				return false;
