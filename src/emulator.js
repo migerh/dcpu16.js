@@ -183,7 +183,7 @@ var DCPU16 = DCPU16 || {};
 			if (op > 0) {
 				valB = this.getValue(a, 0);
 			}
-			
+
 			if (op >= 0x10 && op <= 0x17) {
 				// special treatment for conditions
 				addrA = this.getValue(b, 1);
@@ -194,6 +194,11 @@ var DCPU16 = DCPU16 || {};
 			// fail silently
 			// BUT NOT FOR CONDITIONS, STUPID!!!
 			if ((((op > 0 && op < 0x10) || op > 0x17) && !addrA) || this.skipNext) {
+				// very ugly
+				if ((op === 0) && (b === 1 || b === 8 || (b > 0xa && b < 0xb) || b > 0xc)) {
+					this.ram.PC++;
+				}
+				
 				this.skipNext = false;
 				return;
 			}
@@ -415,6 +420,7 @@ var DCPU16 = DCPU16 || {};
 				break;
 			case 0x14: // IFG
 				// performs next instruction only if b>a
+console.log('IFG', a, b, addrA, valB);
 				if (addrA <= valB) {
 					this.skipNext = true;
 					this.step();

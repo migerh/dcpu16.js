@@ -126,6 +126,7 @@
 		step = function () {
 			PC.step();
 			printStatus();
+			editor.gotoLine(assembly.addr2line[PC.ram.PC]);
 		},
 		start = function () {
 			PC.start();
