@@ -1,8 +1,44 @@
+
+// This code is part of JSZip:
+
+/**
+
+JSZip - A Javascript class for generating Zip files
+<http://stuartk.com/jszip>
+
+(c) 2009 Stuart Knightley <stuart [at] stuartk.com>
+Licenced under the GPLv3 and the MIT licences
+
+Usage:
+   zip = new JSZip();
+   zip.file("hello.txt", "Hello, World!").add("tempfile", "nothing");
+   zip.folder("images").file("smile.gif", base64Data, {base64: true});
+   zip.file("Xmas.txt", "Ho ho ho !", {date : new Date("December 25, 2007 00:00:01")});
+   zip.remove("tempfile");
+
+   base64zip = zip.generate();
+
+**/
+
+/**
+
+
+  Modified by Michael Gerhaeuser, 2012 for dcpu16.js
+  
+  https://github.com/migerh/dcpu16.js
+  
+  dcpu16.js is free software; You can redistribute it and/or
+  modify it under the terms of the MIT license. You should have
+  received a copy of the MIT license along with dcpu16.js. If not,
+  see http://www.opensource.org/licenses/MIT
+
+ **/
+
+
 Base64 = {
 	keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
 	
 	encode: function (data) {
-		// taken from https://github.com/Stuk/jszip
 		var output = "",
 			chr1, chr2, chr3, enc1, enc2, enc3, enc4,
 			i = 0;
