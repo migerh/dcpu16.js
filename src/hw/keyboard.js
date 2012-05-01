@@ -92,7 +92,7 @@ var DCPU16 = DCPU16 || {};
 			var code = e.keyCode || e.which;
 			
 			code = _.mod[code] || code;
-			this.buffer.push(e.which);
+			this.buffer.push(code);
 			if (this.message > 0) {
 				this.dcpu.int(this.message);
 			}
