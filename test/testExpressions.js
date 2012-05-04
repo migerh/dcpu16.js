@@ -90,7 +90,7 @@ TestCase("Expressions", {
 			'SET X, (1+1)*3\n' +
 			'SET Y, 1+1*3\n' +
 			
-			':halt SET PC, halt';
+			'SUB PC, 1';
 
 		this.cpu.load(DCPU16.asm(src).bc);
 		this.cpu.steps(20);
@@ -105,12 +105,85 @@ TestCase("Expressions", {
 		var src =
 			'SET X, 0x8000 + 32 * 2 + 2\n' +
 			
-			':halt SET PC, halt';
+			'SUB PC, 1';
 
 		this.cpu.load(DCPU16.asm(src).bc);
 		this.cpu.steps(20);
 
 		assertEquals('whitespaces', 32834, this.cpu.ram.X);
-	}
+	},
 	
+	testUnaryMinus: function () {
+		expectAsserts(1);
+
+		var src =
+			'SET X, -1\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+
+		assertEquals('unary minus', 0xffff, this.cpu.ram.X);
+	},
+	
+	testUnaryNot: function () {
+		expectAsserts(3);
+
+		var src =
+			'SET X, ~0xff\n' +
+			'SET Y, ~((0xf0 + 0xf) << 8)\n' +
+			'SET Z, (0xf0 + 0xf) << 8\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+
+		assertEquals('unary not', 0xff00, this.cpu.ram.X);
+		assertEquals('unary not shift', 0xff00, this.cpu.ram.Z);
+		assertEquals('unary not 2', 0xff, this.cpu.ram.Y);
+	},
+	
+	testUnaryPlus: function () {
+		expectAsserts(1);
+
+		var src =
+			'SET X, +0xabcd\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+
+		assertEquals('unary plus', 0xabcd, this.cpu.ram.X);
+	},
+	
+	testSHL: function () {
+		expectAsserts(1);
+
+		var src =
+			'SET X, 0xab << 8\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+
+		assertEquals('shl expression', 0xab00, this.cpu.ram.X);
+	},
+	
+	testSHR: function () {
+		expectAsserts(1);
+
+		var src =
+			'SET X, 0xab >> 4\n' +
+			
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+
+		assertEquals('shr expression', 0xa, this.cpu.ram.X);
+	}
 });

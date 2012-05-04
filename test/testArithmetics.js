@@ -23,7 +23,7 @@ TestCase("Arithmetics", {
 			'ADD A, C\n' +
 			'ADD C, 5\n' +
 			'SET B, C\n' +
-			'ADD B, 0xffff\n' +
+			'ADD B, 0xfffe\n' +
 			'SET Z, EX\n' +
 			
 			':halt SET PC, halt';
@@ -33,7 +33,7 @@ TestCase("Arithmetics", {
 		
 		assertEquals('add registers', 7, this.cpu.ram.A);
 		assertEquals('add value', 9, this.cpu.ram.C);
-		assertEquals('overflow', 8, this.cpu.ram.B);
+		assertEquals('overflow', 7, this.cpu.ram.B);
 		assertEquals('carry flag', 1, this.cpu.ram.Z);
 	},
 

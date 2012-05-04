@@ -68,6 +68,7 @@ DCPU16.Parser = (function(){
         "shift": parse_shift,
         "additive": parse_additive,
         "multiplicative": parse_multiplicative,
+        "unary": parse_unary,
         "value": parse_value,
         "number": parse_number,
         "strliteral": parse_strliteral,
@@ -683,7 +684,7 @@ DCPU16.Parser = (function(){
           pos1 = pos;
           result0 = parse_ws();
           if (result0 !== null) {
-            result1 = parse_op();
+            result1 = parse_label();
             if (result1 !== null) {
               result2 = parse_ws();
               if (result2 !== null) {
@@ -1721,7 +1722,7 @@ DCPU16.Parser = (function(){
         
         pos0 = pos;
         pos1 = pos;
-        result0 = parse_value();
+        result0 = parse_unary();
         if (result0 !== null) {
           result1 = parse_ws();
           if (result1 !== null) {
@@ -1761,7 +1762,7 @@ DCPU16.Parser = (function(){
             if (result3 !== null) {
               result4 = parse_ws();
               if (result4 !== null) {
-                result5 = parse_value();
+                result5 = parse_unary();
                 if (result5 !== null) {
                   result6 = parse_ws();
                   if (result6 !== null) {
@@ -1819,7 +1820,7 @@ DCPU16.Parser = (function(){
               if (result3 !== null) {
                 result4 = parse_ws();
                 if (result4 !== null) {
-                  result5 = parse_value();
+                  result5 = parse_unary();
                   if (result5 !== null) {
                     result6 = parse_ws();
                     if (result6 !== null) {
@@ -1857,6 +1858,65 @@ DCPU16.Parser = (function(){
         }
         if (result0 !== null) {
           result0 = (function(offset, left, right) { return expressionNode(left, right); })(pos0, result0[0], result0[2]);
+        }
+        if (result0 === null) {
+          pos = pos0;
+        }
+        return result0;
+      }
+      
+      function parse_unary() {
+        var result0, result1;
+        var pos0, pos1;
+        
+        pos0 = pos;
+        pos1 = pos;
+        if (input.charCodeAt(pos) === 45) {
+          result0 = "-";
+          pos++;
+        } else {
+          result0 = null;
+          if (reportFailures === 0) {
+            matchFailed("\"-\"");
+          }
+        }
+        if (result0 === null) {
+          if (input.charCodeAt(pos) === 126) {
+            result0 = "~";
+            pos++;
+          } else {
+            result0 = null;
+            if (reportFailures === 0) {
+              matchFailed("\"~\"");
+            }
+          }
+          if (result0 === null) {
+            if (input.charCodeAt(pos) === 43) {
+              result0 = "+";
+              pos++;
+            } else {
+              result0 = null;
+              if (reportFailures === 0) {
+                matchFailed("\"+\"");
+              }
+            }
+          }
+        }
+        result0 = result0 !== null ? result0 : "";
+        if (result0 !== null) {
+          result1 = parse_value();
+          if (result1 !== null) {
+            result0 = [result0, result1];
+          } else {
+            result0 = null;
+            pos = pos1;
+          }
+        } else {
+          result0 = null;
+          pos = pos1;
+        }
+        if (result0 !== null) {
+          result0 = (function(offset, o, v) { return (o.length > 0 ? node('node_expression', 'u' + o, v) : v); })(pos0, result0[0], result0[1]);
         }
         if (result0 === null) {
           pos = pos0;

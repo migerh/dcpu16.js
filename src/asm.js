@@ -235,8 +235,10 @@ var DCPU16 = DCPU16 || {};
 										
 										parval = _.regTable[tmp[1]];
 									} else {
-										if (par === 1 && tmp[0] >= -1 && tmp[0] < 30) {
+										if (par === 1 && tmp[0] >= -1 && tmp[0] < 0x1f) {
 											parval = 0x21 + tmp[0];
+										} else if (par === 1 && tmp[0] === 0xffff) {
+											parval = 0x20;
 										} else {
 											parval = 0x1f;
 											emit(tmp[0]);
@@ -342,14 +344,23 @@ var DCPU16 = DCPU16 || {};
 						result = [0xDEAD, 0];
 					} else {
 						tmp.push(parseTokens(node.children[0], false, true));
-						tmp.push(parseTokens(node.children[1], false, true));
-							
-						if (tmp[0][1] !== 0 && tmp[1][1] !== 0) {
-							throw new ParserError('Found multiple registers in one expressions.', node.line);
+						
+						if (node.children.length > 1) {
+							tmp.push(parseTokens(node.children[1], false, true));
 						}
 						
-						if ((tmp[0][1] !== 0 || tmp[1][1] !== 0) && node.value !== '+') {
-							throw new ParserError('Registers inside expressions are allowed in sums only.', node.line);
+						if (node.children.length > 1) {
+							if (tmp[0][1] !== 0 && tmp[1][1] !== 0) {
+								throw new ParserError('Found multiple registers in one expression.', node.line);
+							}
+						
+							if ((tmp[0][1] !== 0 || tmp[1][1] !== 0) && node.value !== '+') {
+								throw new ParserError('Registers inside expressions are allowed in sums only.', node.line);
+							}
+						} else {
+							if ((tmp[0][1] !== 0) && node.value !== 'u+') {
+								throw new ParserError('Registers inside expressions are allowed in sums only.', node.line);
+							}
 						}
 						
 						result = [0, 0];
@@ -358,8 +369,10 @@ var DCPU16 = DCPU16 || {};
 							result[1] = tmp[0][1];
 						}
 						
-						if (tmp[1][1] !== 0) {
-							result[1] = tmp[1][1];
+						if (node.children.length > 1) {
+							if (tmp[1][1] !== 0) {
+								result[1] = tmp[1][1];
+							}
 						}
 
 						switch (node.value) {
@@ -386,6 +399,21 @@ var DCPU16 = DCPU16 || {};
 							break;
 						case "^":
 							result[0] = tmp[0][0] ^ tmp[1][0];
+							break;
+						case "<<":
+							result[0] = tmp[0][0] << tmp[1][0];
+							break;
+						case ">>":
+							result[0] = tmp[0][0] >> tmp[1][0];
+							break;
+						case "u~":
+							result[0] = ~tmp[0][0];
+							break;
+						case "u+":
+							result[0] = tmp[0][0];
+							break;
+						case "u-":
+							result[0] = -tmp[0][0];
 							break;
 						}
 					}

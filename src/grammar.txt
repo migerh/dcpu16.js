@@ -14,7 +14,6 @@
  */
  
 
-
 /*
  * DCPU16 ASM Parser
  */
@@ -113,7 +112,7 @@ stmt
 cmd
   = ws "DAT"i ws plist:paramlist
     { return node("node_directive", "DAT", plist); }
-  / ws op:op ws plist:paramlist?
+  / ws op:label ws plist:paramlist?
     { return node("node_op", op.toUpperCase(), plist); }
 
 paramlist
@@ -187,8 +186,12 @@ additive
     { return expressionNode(left, right); }
 
 multiplicative
-  = left:value ws right:(("*" / "/" / "%") ws value ws)*
+  = left:unary ws right:(("*" / "/" / "%") ws unary ws)*
     { return expressionNode(left, right); }
+
+unary
+  = o:("-" / "~" / "+")? v:value
+    { return (o.length > 0 ? node('node_expression', 'u' + o, v) : v); }
 
 value
   = v:number
@@ -217,7 +220,7 @@ number "number"
   / v:("0x"[0-9a-fA-F]+)
     { return parseInt(v[0] + v[1].join(''), 16); }
   /* dec */
-  / v:[0-9]+
+  / v:([0-9]+)
     { return parseInt(v.join(''), 10); }
 
 strliteral "stringliteral"
