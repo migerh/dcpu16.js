@@ -54,13 +54,7 @@ try {
 		}
 	}
 
-	fo = new java.io.FileOutputStream(options.out);
-
-	for (i = 0; i < assembly.bc.length; i++) {
-		fo.write(assembly.bc[i]);
-	}
-
-	fo.close();
+	DCPU16.IO.saveBinary(options.out, assembly.bc);
 } catch (e) {
 	if (e.name === 'ParserError') {
 		print('Error in line ' + e.line + ': ' + e.message);

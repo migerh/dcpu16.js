@@ -50,6 +50,21 @@ var DCPU16 = DCPU16 || {};
 			}
 	
 			return true;
+		},
+		
+		saveBinary: function (name, ba) {
+			var fo = new java.io.FileOutputStream(name);
+
+			if (fo) {		
+				for (i = 0; i < ba.length; i++) {
+					fo.write(ba[i]);
+				}
+			} else {
+				throw new this.IOException("Unable to write '" + name + "'");
+				return false;
+			}
+	
+			return true;
 		}
 	};
 	
