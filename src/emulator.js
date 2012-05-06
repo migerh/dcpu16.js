@@ -206,10 +206,16 @@ var DCPU16 = DCPU16 || {};
 				addrA = this.getAddress(b, 1);
 			}
 
+			// chain failed conditions
+			if ((op >= 0x10 && op < 0x18) && this.skipNext) {
+				return;
+			}
+
 			// fail silently
 			// BUT NOT FOR CONDITIONS, STUPID!!!
 			if ((((op > 0 && op < 0x10) || op > 0x17) && !addrA) || this.skipNext) {
-				// very ugly
+				// very ugly; if we have a non basic op we have to check if we have to
+				// jump over the next word, too.
 				if ((op === 0) && (b === 1 || b === 8 || (b > 0xa && b < 0xb) || b > 0xc)) {
 					this.ram.PC++;
 				}
@@ -217,7 +223,7 @@ var DCPU16 = DCPU16 || {};
 				this.skipNext = false;
 				return;
 			}
-
+			
 			switch (op) {
 			case 0:
 				switch (b) {

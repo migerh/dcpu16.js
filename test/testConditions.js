@@ -179,6 +179,45 @@ TestCase("Conditions", {
 		this.cpu.steps(20);
 		
 		assertEquals('stack altered', 0xFFFF, this.cpu.ram.SP);
-	}
+	},
+	
+	testChainedIfs: function () {
+		expectAsserts(1);
 
+		var src =
+			'SET A, 1\n' +
+			'SET X, 0\n' +
+			'SET Y, 1\n' +
+			'SET Z, 2\n' +
+			'IFE X, 0\n' +
+			'IFE Y, 1\n' +
+			'IFE Z, 2\n' +
+			'SET A, 3\n' +
+
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('chained if fulfilled', 0x3, this.cpu.ram.A);
+	},
+
+	testChainedIfs: function () {
+		expectAsserts(1);
+
+		var src =
+			'SET A, 1\n' +
+			'SET X, 0\n' +
+			'SET Y, 1\n' +
+			'IFE X, 2\n' +
+			'IFE Y, 1\n' +
+			'SET A, 3\n' +
+
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('chained ifs not met', 0x1, this.cpu.ram.A);
+	}
 });
