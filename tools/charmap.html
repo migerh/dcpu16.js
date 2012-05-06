@@ -1,6 +1,8 @@
 <html>
 	<head>
-		<script type="text/javascript" src="dcpu16.js"></script>
+		<script type="text/javascript" src="../src/common.js"></script>
+		<script type="text/javascript" src="../src/emulator.js"></script>
+		<script type="text/javascript" src="../src/hw/ne_lem1802.js"></script>
 		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
 		
 		<style type="text/css">
@@ -85,8 +87,7 @@
 				0x7F04, 0x7800, 0x047D, 0x0000, 0x2040, 0x3D00, 0x7F10, 0x6C00, 0x017F, 0x0000, 0x7C18, 0x7C00, 0x7C04, 0x7800, 0x3844, 0x3800,
 				0x7C14, 0x0800, 0x0814, 0x7C00, 0x7C04, 0x0800, 0x4854, 0x2400, 0x043E, 0x4400, 0x3C40, 0x7C00, 0x1C60, 0x1C00, 0x7C30, 0x7C00,
 				0x6C10, 0x6C00, 0x4C50, 0x3C00, 0x6454, 0x4C00, 0x0836, 0x4100, 0x0077, 0x0000, 0x4136, 0x0800, 0x0201, 0x0201, 0x0205, 0x0200],
-			singleChar = [0x0, 0x0],
-			PC = new DCPU16.PC(),
+			screen = new DCPU16.NE_LEM1802(null),
 			char, charmap, testarea,
 			cmbw = 4, cmbh = 4, scbw = 20, scbh = 20,
 			selectedChar = 0,
@@ -111,7 +112,12 @@
 		}
 		
 		function loadCharacter(index) {
-			PC.drawCharacter(char, charmapData[index], charmapData[index + 1], '000', 'CDEB8B', false, 0, 0, scbw, scbh);
+			var buf = char.createImageData(80, 160);
+			screen.defWidth = 4;
+			screen.width = screen.defWidth * 20;
+			
+			screen.drawCharacter((charmapData[index] << 16) | (charmapData[index + 1]), {r: 0xCD, g: 0xE8, b: 0x8B}, {r: 0, g: 0, b: 0}, 0, 0, buf);
+			char.putImageData(buf, 0, 0);
 			$('#char-data').val(DCPU16.printHex(charmapData[index]) + ', ' + DCPU16.printHex(charmapData[index+1]));
 		}
 		
@@ -143,18 +149,22 @@
 		}
 		
 		function redrawCharmap() {
-			var i = 0, ox = 0, oy = 0, out = [];
+			var i = 0, ox = 0, oy = 0, out = [],
+				buf = charmap.createImageData(256, 256);
+				
+			screen.defWidth = 64;
+			screen.width = screen.defWidth * 4;
 			
 			while (i < charmapData.length) {
-				PC.drawCharacter(charmap, charmapData[i++], charmapData[i++], '000', 'CDEB8B', false, ox, oy, cmbw, cmbh);
-	
-				if (i % 32 === 0) {
+				screen.drawCharacter((charmapData[i++] << 16) | (charmapData[i++]), {r: 0xCD, g: 0xE8, b: 0x8B}, {r: 0, g: 0, b: 0}, oy, ox++, buf);
+
+				if (ox > 15) {
 					ox = 0;
-					oy += 8*cmbh;
-				} else {
-					ox += 4*cmbw;
+					oy++;
 				}
 			}
+			
+			charmap.putImageData(buf, 0, 0);
 
 			charmap.strokeStyle = '#f00';
 			charmap.lineWidth = 2;
@@ -167,17 +177,18 @@
 		}
 
 		function redrawTestArea() {
+			var buf = testarea.createImageData(512, 256);
+			
+			screen.defWidth = 128;
+			screen.width = screen.defWidth * 4;
+
 			testAreaData.forEach(function(line, y) {
 				line.forEach(function(cell, x) {
-					var px = x * cmbw * 4,
-						py = y * cmbh * 8;
-
-				//PC.drawCharacter(charmap, charmapData[i++], charmapData[i++], '000', 'CDEB8B', false, ox, oy, cmbw, cmbh);
-					PC.drawCharacter(testarea, charmapData[cell],
-							charmapData[cell + 1], '000', 'CDEB8B', false, px,
-							py, cmbw, cmbh);
-				})
-			})
+					screen.drawCharacter((charmapData[cell] << 16) | (charmapData[cell + 1]), {r: 0xCD, g: 0xE8, b: 0x8B}, {r: 0, g: 0, b: 0}, y, x, buf);
+				});
+			});
+			
+			testarea.putImageData(buf, 0, 0);
 		}
 		
 		redrawCharmap();
@@ -230,18 +241,7 @@
 			testAreaData[oy][ox] = selectedChar;
 			redrawTestArea(); // It's not necessary to redraw everything, but
 			                  // I'm lazy...
-		})
-
-		/*$('#char-data').on('change', function (e) {
-			var d = $('#char-data').val().split(','), i;
-
-			for (i = 0; i < d.length; i++) {
-				charmapData[i] = DCPU16.parseInt(d[i]);
-			}
-			
-			redrawCharmap();
-			loadCharacter(selectedChar);
-		});*/
+		});
 	})();
 </script>
 </body>

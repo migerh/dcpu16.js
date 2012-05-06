@@ -139,7 +139,7 @@ var DCPU16 = DCPU16 || {};
 		this.drawCharacter = function (char, fg, bg, x, y, buf) {
 			var i, j, k, l, line, index, color,
 				scale = this.width / this.defWidth;
-				
+
 			x = x * /* one line */ this.width * /* 4 values for each pixel */ 4 * /* height of char */ 8 * scale;
 			y = y * /* width of char */4 * /* 4 values for each pixel */ 4 * scale;
 			
@@ -204,8 +204,10 @@ var DCPU16 = DCPU16 || {};
 			canvas.putImageData(buf, 0, 0);
 		};
 
-		this.dcpu = dcpu;
-		this.dcpu.add(this);
+		if (dcpu) {
+			this.dcpu = dcpu;
+			this.dcpu.add(this);
+		}
 	};
 
 })();
