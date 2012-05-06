@@ -219,5 +219,26 @@ TestCase("Conditions", {
 		this.cpu.steps(20);
 		
 		assertEquals('chained ifs not met', 0x1, this.cpu.ram.A);
+	},
+
+	testChainedIfsLastFails: function () {
+		expectAsserts(1);
+
+		var src =
+			'SET A, 1\n' +
+			'SET X, 0\n' +
+			'SET Y, 1\n' +
+			'SET Z, 2\n' +
+			'IFE X, 0\n' +
+			'IFE Y, 1\n' +
+			'IFE Z, 3\n' +
+			'SET A, 3\n' +
+
+			'SUB PC, 1';
+
+		this.cpu.load(DCPU16.asm(src).bc);
+		this.cpu.steps(20);
+		
+		assertEquals('chained ifs not met', 0x1, this.cpu.ram.A);
 	}
 });
