@@ -1,0 +1,58 @@
+IAS isr
+
+IAQ 1
+
+SET A, 0
+HWI 1
+
+SET A, 3
+SET B, 0x7
+HWI 0
+
+SET A, 3
+SET B, 0x10
+HWI 1
+
+SET A, 0
+SET B, 60
+HWI 2
+
+:floop
+SET A, 1
+HWI 2
+IFG C, 0x5
+IAQ 0
+SET PC, floop
+
+SUB PC, 1
+
+:scroll
+SET PUSH, J
+SET PUSH, A
+SET PUSH, B
+SET I, 0
+:sloop
+STI [0x8000+I], [0x8020+J]
+IFL I, 0x160
+SET PC, sloop
+:cloop
+STI [0x8000+I], 0
+IFL i, 0x180
+SET PC, cloop
+SET I, 0x160
+SET B, POP
+SET A, POP
+SET J, POP
+SET PC, POP
+
+:isr
+SET A, 1
+HWI 1
+BOR C, 0xF000
+SET [0x8000 + I], C
+ADD I, 1
+IFG I, 0x17f
+JSR scroll
+
+RFI
+

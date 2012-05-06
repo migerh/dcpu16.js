@@ -23,30 +23,33 @@ var DCPU16 = DCPU16 || {};
 		},
 	
 		hasStorage: function () {
-			return typeof localStorage !== 'undefined';
+			return true;
 		},
 	
 		read: function (name) {
-			var r;
-		
-			if (!this.hasStorage()) {
-				throw new IOException('No storage available.');
-			}
-		
-			r = localStorage.getItem(name);
-			if (r !== null) {
-				return r;
-			} else {
-				throw new IOException('File not found');
-			}
-		},
+			var src = new String();
 	
-		save: function (name, content) {
-			if (!this.hasStorage()) {
-				throw new IOException('No storage available.');
+			if (new java.io.File(name).exists()) {
+				src = readFile(name);
+			} else {
+				throw new this.IOException("Unable to open file '" + name + "'");
 			}
+	
+			return src;
+		},
+
+		save: function (name, content) {
+			var f = new java.io.PrintWriter(name);
 		
-			localStorage.setItem(name, content);
+			if (f) {
+				f.write(content);
+				f.close();
+			} else {
+				throw new this.IOException("Unable to write '" + name + "'");
+				return false;
+			}
+	
+			return true;
 		}
 	};
 	
