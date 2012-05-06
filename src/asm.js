@@ -89,20 +89,16 @@ var DCPU16 = DCPU16 || {};
 				'IA': 0xff
 			},
 			
-			preprocess: function (src) {
-				// eliminate tabs
-				return src.replace(/\t/g, " ");
-			},
-
 			isArray: function (val) {
 				return typeof val === "object" && 'splice' in val && 'join' in val;
 			}
 		}, // end of definition of _
 		
-		ParserError = function (msg, line) {
+		ParserError = function (msg, file, line) {
 			this.name = 'ParserError';
 			this.message = msg;
 			this.line = line;
+			this.file = file;
 		};
 		ParserError.prototype = Error.prototype;
 
@@ -110,6 +106,7 @@ var DCPU16 = DCPU16 || {};
 		'use strict';
 		
 		var i, tokens, pc = 0, oppc = 0, par = 0, tmp,
+			filename, basePath = '', mapLines = [],
 		
 			// results
 			bc = [], listing = [], rom = [],
@@ -126,8 +123,13 @@ var DCPU16 = DCPU16 || {};
 			warn = function (msg, line) {
 				warnings.push({
 					message: msg,
-					line: line
+					file: mapLines[line - 1].file,
+					line: mapLines[line - 1].line
 				});
+			},
+			
+			err = function (msg, line) {
+				return new ParserError(msg, mapLines[line - 1].file, mapLines[line - 1].line);
 			},
 			
 			// parsing and generating
@@ -136,13 +138,66 @@ var DCPU16 = DCPU16 || {};
 				pc++;
 			},
 			
+			preprocess = function (src) {
+				var i = 0, sub, incs = {}, files = [filename], file, fname = filename,
+					counter = [0];
+
+				src = src.split('\n');
+				incs[filename] = src.length + 10;
+
+				while (i < src.length) {
+					sub = DCPU16.trim(src[i].split(';')[0]);
+					if (sub.length > 0 && (sub.charAt(0) === '.' || sub.charAt(0) === '#') && sub.substr(1, 7) === 'include') {
+						sub = DCPU16.trim(sub.substr(8));
+						
+						if (sub.charAt(0) === '"' || sub.charAt(sub.length - 1) === '"') {
+							fname = basePath + DCPU16.separator + sub.slice(1, -1);
+
+							if (incs[fname] >= 0) {
+								src.splice(i, 1, '');
+								warn('Ignoring "' + fname + '" because it was included more than once.', i - 1);
+							} else {
+								file = DCPU16.IO.read(fname).split('\n');
+								incs[fname] = file.length;
+								files.unshift(fname);
+								src.splice.apply(src, [i, 1].concat(file));
+								counter[0]++;
+								counter.unshift(1);
+							}
+						} else {
+							throw err('Not implemented: includes with parameters other than "<filename>".', i - 1);
+						}
+					} else {
+						i++;
+						incs[fname]--;
+						
+						if (incs[fname] > 0) {
+							counter[0]++;
+						} else {
+							counter.shift();
+							files.shift();
+							fname = files[0];
+							counter[0]++;
+						}
+					}
+
+					mapLines.push({
+						file: fname,
+						line: counter[0]
+					});
+				}
+				
+				return src.join('\n');
+			},
+
 			parseTokens = function (node, allowMacros, evalExpressions) {
 				var opcode = 0, parameters, i, j, result, tmp = [], parval;
 
 				switch(node.type) {
 				case "node_label":
 					if (labels[node.value]) {
-						warn('Label already defined in line ' + labels[node.value].line + ', ignoring this definition.', node.line);
+						j = mapLines[labels[node.value].line - 1];
+						warn('Label "' + node.value + '" already defined in ' + j.file + ':' + j.line + ', ignoring this definition.', node.line);
 					} else if (_.regTable[node.value.toUpperCase()] >= 0) {
 						warn('"' + node.value + '" is a keyword. This label can not be referenced.', node.line);
 					} else {
@@ -168,7 +223,7 @@ var DCPU16 = DCPU16 || {};
 									emit(tmp.charCodeAt(j));
 								}
 							} else {
-								throw new ParserError('Unknown parameter "' + tmp + '" for dat.', node.line);
+								throw err('Unknown parameter "' + tmp + '" for dat.', node.line);
 							}
 						}
 						break;
@@ -185,7 +240,7 @@ var DCPU16 = DCPU16 || {};
 					case "nolist":
 					case "list":
 					case "dir_callmacro":
-						throw new ParserError('Not yet implemented.', node.line);
+						throw err('Not yet implemented.', node.line);
 						break;
 					default:
 						warn('Ignoring unknown directive "' + node.value + '".', node.line);
@@ -203,7 +258,7 @@ var DCPU16 = DCPU16 || {};
 						}
 
 						if (((opcode & 0x1f) > 0 && parameters.length !== 2) || ((opcode & 0x1f) === 0 && node.value !== 'RFI' && parameters.length !== 1)) {
-							throw new ParserError('Invalid number of parameters. Got ' + parameters.length, node.line);
+							throw err('Invalid number of parameters. Got ' + parameters.length, node.line);
 						}
 
 						oppc = pc;
@@ -228,9 +283,9 @@ var DCPU16 = DCPU16 || {};
 								} else {
 									if (tmp[1] !== 0) {
 										if (par === 1 && tmp[1] === 'PUSH') {
-											throw new ParserError('PUSH is not allowed in this context.', node.line);
+											throw err('PUSH is not allowed in this context.', node.line);
 										} else if (par === 0 && tmp[1] === 'POP') {
-											throw new ParserError('POP is not allowed in this context.', node.line);
+											throw err('POP is not allowed in this context.', node.line);
 										}
 										
 										parval = _.regTable[tmp[1]];
@@ -283,7 +338,7 @@ var DCPU16 = DCPU16 || {};
 						
 						bc[oppc] = opcode;
 					} else {
-						throw new ParserError('Unknown operation "' + node.value + '".', node.line);
+						throw err('Unknown mnemonic "' + node.value + '".', node.line);
 					}
 					break;
 				case "node_value":
@@ -330,7 +385,7 @@ var DCPU16 = DCPU16 || {};
 					}
 					break;
 				case "node_comparison":
-					throw new ParserError('Not implemented', node.line);
+					throw err('Not implemented', node.line);
 					break;
 				case "node_expression":
 					if (!evalExpressions) {
@@ -351,15 +406,15 @@ var DCPU16 = DCPU16 || {};
 						
 						if (node.children.length > 1) {
 							if (tmp[0][1] !== 0 && tmp[1][1] !== 0) {
-								throw new ParserError('Found multiple registers in one expression.', node.line);
+								throw err('Found multiple registers in one expression.', node.line);
 							}
 						
 							if ((tmp[0][1] !== 0 || tmp[1][1] !== 0) && node.value !== '+') {
-								throw new ParserError('Registers inside expressions are allowed in sums only.', node.line);
+								throw err('Registers inside expressions are allowed in sums only.', node.line);
 							}
 						} else {
 							if ((tmp[0][1] !== 0) && node.value !== 'u+') {
-								throw new ParserError('Registers inside expressions are allowed in sums only.', node.line);
+								throw err('Registers inside expressions are allowed in sums only.', node.line);
 							}
 						}
 						
@@ -424,12 +479,37 @@ var DCPU16 = DCPU16 || {};
 			};
 	
 		options = options || {};
-		src = _.preprocess(src);
 		
+		if (options.fromFile) {
+			filename = src;
+			src = DCPU16.IO.read(filename);
+			
+			basePath = [];
+			filename = filename.split(DCPU16.separator);
+			
+			for (i = 0; i < filename.length - 1; i++) {
+				basePath.push(filename[i]);
+			}
+			
+			basePath = basePath.join(DCPU16.separator);
+			filename = filename.join(DCPU16.separator);
+		} else {
+			filename = 'default';
+		}
+
+		src = preprocess(src);
+		
+		if (options.include) {
+			return src;
+		}
+		
+		pc = options.base || 0;
+
 		try {
 			tokens = DCPU16.Parser.parse(src);
 
 			for (i = 0; i < tokens.length; i++) {
+				// assuming we have a single file only
 				if (tokens[i].value !== 'nop') {
 					addr2line[pc] = tokens[i].line;
 					line2addr[tokens[i].line] = pc;
@@ -437,7 +517,9 @@ var DCPU16 = DCPU16 || {};
 				parseTokens(tokens[i], true, false);
 			}
 		} catch (e) {
-			throw new ParserError(e.message, e.line);
+			//console.log(e, e.stack);
+			// rethrow e
+			throw e;
 		}
 		
 		// labels and expressions
@@ -447,7 +529,7 @@ var DCPU16 = DCPU16 || {};
 			if (typeof labels[tmp.label] !== 'undefined') {
 				bc[tmp.pc] = labels[tmp.label].pc;
 			} else {
-				throw new ParserError('Can\'t find definition for label "' + tmp.label + '"', tmp.line);
+				throw new ParserError('Can\'t find definition for label "' + tmp.label + '"', filename, tmp.line);
 			}
 		}
 		
@@ -470,7 +552,7 @@ var DCPU16 = DCPU16 || {};
 					// it's SP
 					bc[tmp.oppc] |= 0x1a << (5 + tmp.par * 5);
 				} else {
-					throw new ParserError('The register "' + oppc + '" is not allowed in an expression.', tmp.line);
+					throw new ParserError('The register "' + oppc + '" is not allowed in an expression.', filename, tmp.line);
 				}
 			}
 

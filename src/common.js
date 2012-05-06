@@ -22,6 +22,7 @@ var DCPU16 = DCPU16 || {};
 	DCPU16.maxWord = 0xffff;
 	DCPU16.maxSigned = 0x7fff;
 	DCPU16.ramSize = 0x10000;
+	DCPU16.separator = '/';
 	
 	DCPU16.version = function () {
 		return this.versionStr;

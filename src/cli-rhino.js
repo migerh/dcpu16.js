@@ -19,7 +19,7 @@ load('src/cli-common.js');
 load('src/asm.js');
 load('src/parser.js');
 
-print('dcpu16.js asm ' + DCPU16.version() + '\n');
+DCPU16.separator = java.lang.System.getProperty('file.separator');
 
 var program = 'rhino cli-rhino.js',
 	i, args = Array.prototype.slice.call(arguments, 0),
@@ -43,21 +43,29 @@ if (!options.src) {
 }
 
 options.out = options.out || 'a.rom';
+options.fromFile = true;
+options.base = 0;
 
 try {
-	src = DCPU16.IO.read(options.src);
-	assembly = DCPU16.asm(src);
+	assembly = DCPU16.asm(options.src, options);
 	
+	if (options.include) {
+		print(assembly);
+		quit(0);
+	}
+	
+	print('dcpu16.js asm ' + DCPU16.version() + '\n');
+
 	if (options.warn) {
 		for (i = 0; i < assembly.warnings.length; i++) {
-			print('Warning in line ' + assembly.warnings[i].line + ': ' + assembly.warnings[i].message);
+			print('Warning in ' + assembly.warnings[i].file + ':' + assembly.warnings[i].line + ': ' + assembly.warnings[i].message);
 		}
 	}
 
 	DCPU16.IO.saveBinary(options.out, assembly.bc);
 } catch (e) {
 	if (e.name === 'ParserError') {
-		print('Error in line ' + e.line + ': ' + e.message);
+		print('Error in ' + e.file + ':' + e.line + ': ' + e.message);
 	} else {
 		print(e);
 	}

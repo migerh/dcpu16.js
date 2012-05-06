@@ -26,12 +26,14 @@ var DCPU16 = DCPU16 || {};
 				'  Options:',
 				'    -h, --help',
 				'        Prints this information and exits.',
-				'    -i, --version',
-				'        Prints the version and exits.',
+				'    -i, --include',
+				'        Resolve includes and output the result to stdout.',
 				'    -o, --output FILE',
-				'        Output the assembly into the given file.',
+				'        Output the assembly into the given file. Defaults to a.rom.',
 				'    -w, --warnings',
-				'        Prints warnings.'
+				'        Prints warnings.',
+				'    --version',
+				'        Prints the version and exits.'
 			];
 		return str.join('\n');
 	};
@@ -47,7 +49,9 @@ var DCPU16 = DCPU16 || {};
 				options.warn = true;
 			} else if (argv[i].toLowerCase() == "-v" || argv[i].toLowerCase() == "--verbose") {
 				options.verbose = true;
-			} else if (argv[i].toLowerCase() == "-i" || argv[i].toLowerCase() == "--version") {
+			} else if (argv[i].toLowerCase() == "-i" || argv[i].toLowerCase() == "--include") {
+				options.include = true;
+			} else if (argv[i].toLowerCase() == "--version") {
 				options.version = true;
 			} else if (argv[i].toLowerCase() == "-h" || argv[i].toLowerCase() == "--help") {
 				options.help = true;
