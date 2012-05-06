@@ -105,7 +105,7 @@ var DCPU16 = DCPU16 || {};
 	DCPU16.asm = function (src, options) {
 		'use strict';
 		
-		var i, tokens, pc = 0, oppc = 0, par = 0, tmp,
+		var i, tokens, pc = 0, filepc = 0, oppc = 0, par = 0, tmp,
 			filename, basePath = '', mapLines = [],
 		
 			// results
@@ -136,6 +136,7 @@ var DCPU16 = DCPU16 || {};
 			emit = function (value) {
 				bc.push(value & DCPU16.maxWord);
 				pc++;
+				filepc++;
 			},
 			
 			preprocess = function (src) {
@@ -228,6 +229,9 @@ var DCPU16 = DCPU16 || {};
 						}
 						break;
 
+					case "org":
+						pc = parseTokens(node.children[0][0], false, true)[0];
+						break;
 					// todo :/
 					case "equ":
 					case "eq":
@@ -235,7 +239,6 @@ var DCPU16 = DCPU16 || {};
 					case "elseif":
 					case "else":
 					case "endif":
-					case "org":
 					case "macro":
 					case "nolist":
 					case "list":
@@ -261,7 +264,7 @@ var DCPU16 = DCPU16 || {};
 							throw err('Invalid number of parameters. Got ' + parameters.length, node.line);
 						}
 
-						oppc = pc;
+						oppc = filepc;
 						emit(0);
 
 						if ((opcode & 0x1f) > 0) {
@@ -346,14 +349,14 @@ var DCPU16 = DCPU16 || {};
 					case "val_paramlist":
 						result = [];
 						for (i = 0; i < node.children.length; i++) {
-							result.push(parseTokens(node.children[i], false, false));
+							result.push(parseTokens(node.children[i], false, evalExpressions));
 						}
 						break;
 					case "val_deref":
-						result = parseTokens(node.children[0], false, false);
+						result = parseTokens(node.children[0], false, evalExpressions);
 						break;
 					case "val_literal":
-						result = parseTokens(node.children[0], false, false);
+						result = parseTokens(node.children[0], false, evalExpressions);
 						break;
 					}
 					break;
@@ -366,7 +369,7 @@ var DCPU16 = DCPU16 || {};
 					} else {
 						resolveLabels.push({
 							label: node.value,
-							pc: pc,
+							pc: filepc,
 							par: par,
 							line: node.line,
 							oppc: oppc
@@ -391,7 +394,7 @@ var DCPU16 = DCPU16 || {};
 					if (!evalExpressions) {
 						resolveExpressions.push({
 							expression: node,
-							pc: pc,
+							pc: filepc,
 							par: par,
 							line: node.line,
 							oppc: oppc
