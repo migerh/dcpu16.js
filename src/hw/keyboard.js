@@ -108,7 +108,7 @@ var DCPU16 = DCPU16 || {};
 		_.addEvent(document, 'keydown', function (e) {
 			var code = e.keyCode || e.which;
 			
-			if(typeof _.mod[code] === 'undefined') { // backspace, enter
+			if(_.mod[code]) { // backspace, enter
 				that.keyPress(e);
 				e.preventDefault();
 			}
