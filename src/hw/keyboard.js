@@ -45,7 +45,7 @@ var DCPU16 = DCPU16 || {};
 			46: 0x13,	// Delete
 			38: 0x80,	// Arrow up
 			40: 0x81,	// Arrow down
-			37: 0x82,	//Arrow left
+			37: 0x82,	// Arrow left
 			38: 0x83,	// Arrow right
 			16: 0x90,	// Shift
 			17: 0x91	// Control
@@ -96,15 +96,30 @@ var DCPU16 = DCPU16 || {};
 			if (this.message > 0) {
 				this.dcpu.int(this.message);
 			}
+			
+			return code;
 		};
 		
 		// init
 		this.dcpu = dcpu;
 		this.dcpu.add(this);
 		
-		_.addEvent(document, 'keyup', function (e) {
-			that.keyPress(e);
-			e.preventDefault();
+		// not perfect
+		_.addEvent(document, 'keydown', function (e) {
+			var code = e.keyCode || e.which;
+			
+			if(code == 8) { // backspace
+				that.keyPress(e);
+				e.preventDefault();
+			}
+		});
+		_.addEvent(document, 'keypress', function (e) {
+			var code = e.keyCode || e.which;
+			
+			if(code >= 32 && code <= 126) { // ascii range
+				that.keyPress(e);
+				e.preventDefault();
+			}
 		});
 	};
 
