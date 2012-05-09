@@ -104,11 +104,13 @@ var DCPU16 = DCPU16 || {};
 		this.dcpu = dcpu;
 		this.dcpu.add(this);
 		
-		// not perfect
+		var shift = false;
 		_.addEvent(document, 'keydown', function (e) {
 			var code = e.keyCode || e.which;
 			
-			if(_.mod[code]) { // backspace, enter
+			if(code == 16) { // 16 = shift keycode
+				shift = true;
+			} else if(_.mod[code]) {
 				that.keyPress(e);
 				e.preventDefault();
 			}
@@ -117,8 +119,14 @@ var DCPU16 = DCPU16 || {};
 			var code = e.keyCode || e.which;
 			
 			if(code >= 32 && code <= 126) { // ascii range
+				shift = false;
 				that.keyPress(e);
 				e.preventDefault();
+			}
+		});
+		_.addEvent(document, 'keyup', function (e) {
+			if(shift) {
+				that.keyPress(e); // e = shift event
 			}
 		});
 	};
