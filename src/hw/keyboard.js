@@ -108,7 +108,6 @@ var DCPU16 = DCPU16 || {};
 		_.addEvent(document, 'keydown', function (e) {
 			var code = e.keyCode || e.which;
 			
-			if(_.mod[code]) {
 			if(code == 16) { // 16 = shift keycode
 				shift = true;
 			} else if(_.mod[code] && that.dcpu.isRunning && e.target.nodeName.toLowerCase() !== 'input' && e.target.nodeName.toLowerCase() !== 'textarea') {
