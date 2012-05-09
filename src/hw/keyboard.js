@@ -104,21 +104,32 @@ var DCPU16 = DCPU16 || {};
 		this.dcpu = dcpu;
 		this.dcpu.add(this);
 		
-		// not perfect
+		var shift = false;
 		_.addEvent(document, 'keydown', function (e) {
 			var code = e.keyCode || e.which;
 			
-			if(_.mod[code] && that.dcpu.isRunning && e.target.nodeName.toLowerCase() !== 'input' && e.target.nodeName.toLowerCase() !== 'textarea') {
+			if(_.mod[code]) {
+			if(code == 16) { // 16 = shift keycode
+				shift = true;
+			} else if(_.mod[code] && that.dcpu.isRunning && e.target.nodeName.toLowerCase() !== 'input' && e.target.nodeName.toLowerCase() !== 'textarea') {
 				that.keyPress(e);
 				e.preventDefault();
 			}
 		});
+
 		_.addEvent(document, 'keypress', function (e) {
 			var code = e.keyCode || e.which;
 			
 			if(code >= 32 && code <= 126 && that.dcpu.isRunning && e.target.nodeName.toLowerCase() !== 'input' && e.target.nodeName.toLowerCase() !== 'textarea') {
+				shift = false;
 				that.keyPress(e);
 				e.preventDefault();
+			}
+		});
+
+		_.addEvent(document, 'keyup', function (e) {
+			if(shift) {
+				that.keyPress(e); // e = shift event
 			}
 		});
 	};
