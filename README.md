@@ -48,6 +48,12 @@ be accessed as properties of the ram:
 
 	var valueOfRegisterA = PC.ram.A;
 
+Contributors
+============
+
+* [Dav1dde](https://github.com/Dav1dde)
+* FireFly
+
 Acknowledgements
 ================
 
