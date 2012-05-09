@@ -108,7 +108,7 @@ var DCPU16 = DCPU16 || {};
 		_.addEvent(document, 'keydown', function (e) {
 			var code = e.keyCode || e.which;
 			
-			if(_.mod[code]) { // backspace, enter
+			if(_.mod[code] && that.dcpu.isRunning && e.target.nodeName.toLowerCase() !== 'input' && e.target.nodeName.toLowerCase() !== 'textarea') {
 				that.keyPress(e);
 				e.preventDefault();
 			}
@@ -116,7 +116,7 @@ var DCPU16 = DCPU16 || {};
 		_.addEvent(document, 'keypress', function (e) {
 			var code = e.keyCode || e.which;
 			
-			if(code >= 32 && code <= 126) { // ascii range
+			if(code >= 32 && code <= 126 && that.dcpu.isRunning && e.target.nodeName.toLowerCase() !== 'input' && e.target.nodeName.toLowerCase() !== 'textarea') {
 				that.keyPress(e);
 				e.preventDefault();
 			}
