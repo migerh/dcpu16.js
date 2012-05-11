@@ -46,7 +46,7 @@ var DCPU16 = DCPU16 || {};
 			38: 0x80,	// Arrow up
 			40: 0x81,	// Arrow down
 			37: 0x82,	// Arrow left
-			38: 0x83,	// Arrow right
+			39: 0x83,	// Arrow right
 			16: 0x90,	// Shift
 			17: 0x91	// Control
 		}
