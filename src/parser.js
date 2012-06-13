@@ -1990,7 +1990,7 @@ DCPU16.Parser = (function(){
               pos = pos1;
             }
             if (result0 !== null) {
-              result0 = (function(offset, v) { console.log('string', v); return node("val_string", v); })(pos0, result0[1]);
+              result0 = (function(offset, v) { return node("val_string", v); })(pos0, result0[1]);
             }
             if (result0 === null) {
               pos = pos0;

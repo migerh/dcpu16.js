@@ -207,7 +207,7 @@ value
       }
     }
   / "\"" v:strliteral "\""
-    { console.log('string', v); return node("val_string", v); }
+    { return node("val_string", v); }
   / "(" ws v:bit ws ")"
     { return v; }
 
