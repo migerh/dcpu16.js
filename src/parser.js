@@ -1990,7 +1990,7 @@ DCPU16.Parser = (function(){
               pos = pos1;
             }
             if (result0 !== null) {
-              result0 = (function(offset, v) { return node("val_string", v); })(pos0, result0[1]);
+              result0 = (function(offset, v) { console.log('string', v); return node("val_string", v); })(pos0, result0[1]);
             }
             if (result0 === null) {
               pos = pos0;
@@ -2582,20 +2582,38 @@ DCPU16.Parser = (function(){
         }
         if (result0 === null) {
           pos0 = pos;
-          if (/^[^"]/.test(input.charAt(pos))) {
-            result0 = input.charAt(pos);
-            pos++;
+          if (input.substr(pos, 2) === "\\\\") {
+            result0 = "\\\\";
+            pos += 2;
           } else {
             result0 = null;
             if (reportFailures === 0) {
-              matchFailed("[^\"]");
+              matchFailed("\"\\\\\\\\\"");
             }
           }
           if (result0 !== null) {
-            result0 = (function(offset, v) { return v; })(pos0, result0);
+            result0 = (function(offset, v) { return "\\"; })(pos0, result0);
           }
           if (result0 === null) {
             pos = pos0;
+          }
+          if (result0 === null) {
+            pos0 = pos;
+            if (/^[^"]/.test(input.charAt(pos))) {
+              result0 = input.charAt(pos);
+              pos++;
+            } else {
+              result0 = null;
+              if (reportFailures === 0) {
+                matchFailed("[^\"]");
+              }
+            }
+            if (result0 !== null) {
+              result0 = (function(offset, v) { return v; })(pos0, result0);
+            }
+            if (result0 === null) {
+              pos = pos0;
+            }
           }
         }
         return result0;

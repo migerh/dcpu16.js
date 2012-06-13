@@ -207,7 +207,7 @@ value
       }
     }
   / "\"" v:strliteral "\""
-    { return node("val_string", v); }
+    { console.log('string', v); return node("val_string", v); }
   / "(" ws v:bit ws ")"
     { return v; }
 
@@ -252,6 +252,8 @@ directive "directive"
 allbutquotes
   = v:"\\\""
     { return "\""; }
+  / v:"\\\\"
+    { return "\\"; }
   / v:[^\"]
     { return v; }
 
