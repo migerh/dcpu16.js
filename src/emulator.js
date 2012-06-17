@@ -280,13 +280,22 @@ var DCPU16 = DCPU16 || {};
 					// hardware id C is the hardware version X+(Y<<16) is a 32 bit word identifying the manufacturer
 					valB = this.getValue(a, 0);
 					
-					this.setWord('A', this.devices[valB].id);
-					this.setWord('B', this.devices[valB].id >>> 16);
+					if (this.devices[valB]) {
+    					this.setWord('A', this.devices[valB].id);
+						this.setWord('B', this.devices[valB].id >>> 16);
 					
-					this.setWord('C', this.devices[valB].version);
+						this.setWord('C', this.devices[valB].version);
 
-					this.setWord('X', this.devices[valB].manufacturer);
-					this.setWord('Y', this.devices[valB].manufacturer >>> 16);
+						this.setWord('X', this.devices[valB].manufacturer);
+						this.setWord('Y', this.devices[valB].manufacturer >>> 16);
+					} else {
+    					this.setWord('A', 0);
+						this.setWord('B', 0);
+						this.setWord('C', 0);
+						this.setWord('X', 0);
+						this.setWord('Y', 0);
+					}
+					
 					break;
 				case 0x12: // HWI
 					// sends an interrupt to hardware a
